@@ -1,0 +1,173 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Kantumruy Pro', 'Khmer OS Battambang', 'Khmer OS', system-ui, sans-serif;
+  --font-moul: 'Moul', 'Khmer OS Muol Light', serif;
+
+  /* Khmer script needs a larger size and taller lines than Latin to stay readable */
+  --text-xs: 0.8125rem; /* 13px */
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem; /* 15px */
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1.0625rem; /* 17px */
+  --text-base--line-height: 1.7rem;
+  --text-lg: 1.1875rem; /* 19px */
+  --text-lg--line-height: 1.8rem;
+  --text-xl: 1.375rem; /* 22px */
+  --text-xl--line-height: 2rem;
+  --text-2xl: 1.625rem; /* 26px */
+  --text-2xl--line-height: 2.25rem;
+  /* Brand colours taken from the Khmer-Soviet Friendship Hospital logo:
+     blue #2E3192 (primary) and red #ED1C24 (accent). */
+  --color-brand-50: #eef0fb;
+  --color-brand-100: #dfe2f7;
+  --color-brand-200: #c3c8f0;
+  --color-brand-300: #9aa1e3;
+  --color-brand-400: #6b72d0;
+  --color-brand-500: #474dbb;
+  --color-brand-600: #2e3192;
+  --color-brand-700: #272a7d;
+  --color-brand-800: #212366;
+  --color-brand-900: #1b1d52;
+  --color-brand-950: #111236;
+  --color-accent-50: #fef1f1;
+  --color-accent-100: #fde0e1;
+  --color-accent-500: #ed1c24;
+  --color-accent-600: #cf141b;
+  --color-accent-700: #ab1117;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@layer components {
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .btn-icon {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table th {
+    @apply border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-600;
+  }
+  .table td {
+    @apply border-b border-slate-100 px-3 py-2.5;
+  }
+  .table tbody tr:hover {
+    @apply bg-slate-50/70;
+  }
+  .tab {
+    @apply -mb-px border-b-2 border-transparent px-4 py-2.5 text-sm font-medium whitespace-nowrap text-slate-500 hover:text-slate-800;
+  }
+  .tab-active {
+    @apply border-brand-600 text-brand-700;
+  }
+}
+
+/* ---------- Printable report sheets (match the paper templates) ---------- */
+.report-sheet {
+  @apply mx-auto bg-white p-6 text-[14px] text-black;
+}
+.report-sheet .moul {
+  font-family: var(--font-moul);
+  font-weight: normal;
+}
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.report-table th,
+.report-table td {
+  border: 1px solid #333;
+  padding: 3px 5px;
+}
+.report-table th {
+  font-weight: 600;
+  text-align: center;
+  background: #f1f5f9;
+}
+.report-table td.num {
+  text-align: center;
+}
+.report-table .vertical {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  padding: 6px 2px;
+  font-weight: 500;
+}
+.report-table .highlight {
+  background: #fde8d9;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+  html,
+  body,
+  #root,
+  #root > div {
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+  .report-sheet {
+    padding: 0;
+    font-size: 11px;
+  }
+  .report-table th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report-table .highlight {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page-break {
+    break-before: page;
+  }
+}
