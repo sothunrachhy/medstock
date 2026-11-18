@@ -1,6 +1,6 @@
 import { CircleHelp, Eye, EyeOff, Info, Lock, Phone, User } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { errMsg } from '../api/client';
 import { LANGS } from '../components/Flags';
 import Logo, { Wordmark } from '../components/Logo';
@@ -43,6 +43,7 @@ export default function Login() {
   const { login } = useAuth();
   const { tr, lang, setLang } = useLang();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +56,9 @@ export default function Login() {
     setError('');
     try {
       await login(form.username, form.password);
-      navigate('/', { replace: true });
+      // back to the page the user asked for before being sent to /login
+      const from = location.state?.from;
+      navigate(from && from.startsWith('/') && !from.startsWith('/login') ? from : '/', { replace: true });
     } catch (err) {
       setError(errMsg(err));
     } finally {

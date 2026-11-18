@@ -161,7 +161,7 @@ export function Pagination({ page, limit, total, onChange }) {
 
 export function Tabs({ tabs, value, onChange }) {
   return (
-    <div className="no-print mb-4 flex overflow-x-auto border-b border-slate-200">
+    <div className="no-print mb-4 flex overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-slate-200)]">
       {tabs.map((t) => (
         <button key={t.value} type="button" className={`tab ${value === t.value ? 'tab-active' : ''}`} onClick={() => onChange(t.value)}>
           {t.label}

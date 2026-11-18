@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import { Loading } from './components/ui';
 import { useAuth } from './context/AuthContext';
@@ -29,13 +29,21 @@ function Home() {
   return first ? <Navigate to={`/${first}`} replace /> : <Navigate to="/settings/account" replace />;
 }
 
+// Logged out: send every page to /login and remember where the user wanted to go.
+function RedirectToLogin() {
+  const location = useLocation();
+  const from = location.pathname + location.search;
+  return <Navigate to="/login" replace state={from !== '/' ? { from } : undefined} />;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
   if (!user) {
     return (
       <Routes>
-        <Route path="*" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<RedirectToLogin />} />
       </Routes>
     );
   }
