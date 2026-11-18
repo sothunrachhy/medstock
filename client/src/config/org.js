@@ -7,6 +7,8 @@ export const ORG = {
   department: 'ផ្នែកប្រពោធនកម្មសល្យសាស្ត្រ',
   city: 'ភ្នំពេញ',
   narcoticRefNo: '101',
+  // Shown under "Contact" on the login page (leave empty to hide)
+  phone: '',
 };
 
 export const PROVINCES = [
