@@ -13,11 +13,12 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { ORG } from '@/config/org';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useLang } from '@/app/LangContext';
+import { Loading } from '@/components/ui';
 import { LANGS } from '@/components/brand/Flags';
 import Logo, { Wordmark } from '@/components/brand/Logo';
 
@@ -206,7 +207,9 @@ export default function Layout() {
           </div>
         </header>
         <main className="print-area flex-1 overflow-y-auto p-4 lg:p-6">
-          <Outlet />
+          <Suspense fallback={<Loading />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

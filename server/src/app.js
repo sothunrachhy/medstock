@@ -1,5 +1,6 @@
 // Builds the Express app without starting a server, so it can run both
 // locally (src/index.js → app.listen) and on Vercel as a serverless function (api/index.js).
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -46,6 +47,8 @@ export function createApp({ serveClient = false } = {}) {
     next();
   });
   app.use(cors({ origin: corsOrigin() }));
+  // gzip for the standalone server (Vercel compresses responses itself)
+  if (serveClient) app.use(compression());
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'tiny' : 'dev'));
 
@@ -91,8 +94,17 @@ export function createApp({ serveClient = false } = {}) {
   if (serveClient) {
     const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
     if (fs.existsSync(dist)) {
-      app.use(express.static(dist));
-      app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+      app.use(
+        express.static(dist, {
+          index: false,
+          setHeaders: (res, file) => {
+            // file names in /assets contain a content hash: cache them for a year
+            if (file.includes(`${path.sep}assets${path.sep}`)) res.set('Cache-Control', 'public, max-age=31536000, immutable');
+          },
+        }),
+      );
+      // index.html must always be revalidated so new deployments are picked up
+      app.get('*', (_req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(dist, 'index.html')));
     }
   }
 

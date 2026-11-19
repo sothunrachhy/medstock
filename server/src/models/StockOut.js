@@ -29,5 +29,7 @@ const stockOutSchema = new mongoose.Schema(
 
 stockOutSchema.index({ medicine: 1, date: 1 });
 stockOutSchema.index({ patient: 1, date: 1 });
+// dashboard and reports: usage (type) within a date range
+stockOutSchema.index({ type: 1, date: 1 });
 
 export default mongoose.model('StockOut', stockOutSchema);

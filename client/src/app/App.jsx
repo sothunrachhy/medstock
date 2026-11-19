@@ -1,18 +1,22 @@
+import { lazy } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Loading } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { safeRedirect } from '@shared/safeRedirect';
 import { useLang } from './LangContext';
-import Dashboard from '@/features/dashboard/Dashboard';
 import Login from '@/features/auth/Login';
-import Medicines from '@/features/medicines/Medicines';
-import PatientDetail from '@/features/patients/PatientDetail';
-import Patients from '@/features/patients/Patients';
-import Reports from '@/features/reports/Reports';
-import Settings from '@/features/settings/Settings';
-import Stock from '@/features/stock/Stock';
-import Usage from '@/features/usage/Usage';
+
+// Each screen is its own chunk, downloaded the first time it is opened
+// (e.g. the charts library only loads with the dashboard).
+const Dashboard = lazy(() => import('@/features/dashboard/Dashboard'));
+const Medicines = lazy(() => import('@/features/medicines/Medicines'));
+const PatientDetail = lazy(() => import('@/features/patients/PatientDetail'));
+const Patients = lazy(() => import('@/features/patients/Patients'));
+const Reports = lazy(() => import('@/features/reports/Reports'));
+const Settings = lazy(() => import('@/features/settings/Settings'));
+const Stock = lazy(() => import('@/features/stock/Stock'));
+const Usage = lazy(() => import('@/features/usage/Usage'));
 
 function Guard({ module, children }) {
   const { can } = useAuth();

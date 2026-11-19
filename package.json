@@ -13,7 +13,8 @@
     "start": "npm --prefix server start",
     "lint": "eslint .",
     "test": "npm --prefix server test",
-    "check": "npm run lint && npm test && npm run build"
+    "check": "npm run lint && npm test && npm run build",
+    "db:sync-indexes": "npm --prefix server run db:sync-indexes"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

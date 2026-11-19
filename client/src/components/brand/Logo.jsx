@@ -82,7 +82,7 @@ export default function Logo({ className = 'h-12 w-12' }) {
 // "Med" in red, "Stock" in blue. `onDark` uses a lighter blue so it stays readable on navy.
 export function Wordmark({ className = 'text-2xl', onDark = false }) {
   return (
-    <span className={`font-extrabold tracking-tight ${className}`}>
+    <span className={`font-bold tracking-tight ${className}`}>
       <span className="text-[#F0283A]">Med</span>
       <span className={onDark ? 'text-[#5B85FF]' : 'text-[#1F45C8]'}>Stock</span>
     </span>

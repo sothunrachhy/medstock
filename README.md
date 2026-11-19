@@ -147,6 +147,15 @@ client/                React + Vite app (feature-based)
 Imports inside the client use the `@/` alias for `client/src` (e.g. `import { Modal } from '@/components/ui'`).
 Files in the same feature folder import each other with `./`.
 
+### Performance
+
+- Each screen is a separate chunk loaded on first use (`React.lazy` in `client/src/app/App.jsx`); React and the router are in their own long-cached file, and the charts library only loads with the dashboard.
+- Files in `/assets` have a content hash in their name and are cached for a year (`vercel.json`, and Express for `npm start`); `index.html` is always revalidated. The standalone server gzips responses; Vercel compresses automatically.
+- Login history is deleted automatically after 2 years (TTL index). After updating an existing database, run once:
+  ```bash
+  npm run db:sync-indexes      # uses MONGO_URI (server/.env or the environment)
+  ```
+
 ### Validation
 
 All input rules live in `shared/schemas/` (Zod) and are used on both sides:

@@ -18,5 +18,7 @@ const stockBatchSchema = new mongoose.Schema(
 );
 
 stockBatchSchema.index({ medicine: 1, expiryDate: 1 });
+// opening balance / received totals per medicine in the reports
+stockBatchSchema.index({ medicine: 1, receivedDate: 1 });
 
 export default mongoose.model('StockBatch', stockBatchSchema);

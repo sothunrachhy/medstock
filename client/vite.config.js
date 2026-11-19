@@ -12,6 +12,16 @@ export default defineConfig({
       '@shared': fileURLToPath(new URL('../shared', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // React + router change rarely: keep them in their own long-cached file
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     fs: { allow: ['..'] },
