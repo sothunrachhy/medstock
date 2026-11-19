@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectDB } from './config/db.js';
+import { corsOrigin, CSP_DIRECTIVES, SECURITY_HEADERS } from './config/security.js';
 import { authenticate } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
 import { HttpError } from './utils/http.js';
@@ -26,10 +27,29 @@ export function createApp({ serveClient = false } = {}) {
   const app = express();
   if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 
-  app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(cors({ origin: process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(',').map((s) => s.trim()) : true }));
+  app.disable('x-powered-by');
+  app.use(
+    helmet({
+      // explicit policy (no upgrade-insecure-requests, so http://localhost keeps working)
+      contentSecurityPolicy: { useDefaults: false, directives: CSP_DIRECTIVES },
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+  app.use((_req, res, next) => {
+    res.set('Permissions-Policy', SECURITY_HEADERS['Permissions-Policy']);
+    next();
+  });
+  app.use(cors({ origin: corsOrigin() }));
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'tiny' : 'dev'));
+
+  // API responses contain patient data: never store them in any cache.
+  app.use('/api', (_req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 

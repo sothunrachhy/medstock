@@ -61,6 +61,10 @@ npm start         # Express serves the API and the built app on PORT (default 50
 
 If the app runs behind nginx or another proxy, set `TRUST_PROXY=1` so the login history records the real client IP.
 
+**Security headers** (Content-Security-Policy, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy) are defined once in `server/src/config/security.js`. Express sends them through helmet, and `vercel.json` repeats them for the static files Vercel serves (a test fails if the two drift apart). API responses are sent with `Cache-Control: no-store`. If you add a new external script, font or API, add its origin to the CSP in both places.
+
+**CORS:** in production the API only accepts same-origin requests unless `CLIENT_ORIGIN` lists other allowed origins (comma-separated).
+
 ## Deploy on Vercel
 
 The repo is ready for Vercel (`vercel.json`). The React app is served as static files and the Express API runs as one serverless function (`api/index.js` → `server/src/app.js`). Both are on the same domain, so the client needs no environment variables.
