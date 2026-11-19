@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import api from '../api/client';
-import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '../context/LangContext';
-import { periodRange, shiftPeriod, todayStr } from '../utils/dates';
-import Combobox from './Combobox';
+import api from '@/lib/api';
+import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '@/app/LangContext';
+import { periodRange, shiftPeriod, todayStr } from '@/lib/dates';
+import Combobox from '@/components/ui/Combobox';
 
 export const medLabel = (m) => [m?.name, m?.strength].filter(Boolean).join(' ');
 

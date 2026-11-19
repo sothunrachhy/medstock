@@ -119,12 +119,34 @@ You can create more roles under *Settings → Roles & permissions*.
 ## Project structure
 
 ```
-server/            Express API
-  src/models/      Medicine, StockBatch, StockOut, Patient, Requisition, User, Role, LoginHistory
-  src/routes/      auth, users, roles, login-history, medicines, patients, stock, usage, reports, dashboard
-  src/services/    stock allocation (first-expiry-first-out)
-  src/seed/        roles, admin user, medicine list from the paper templates, demo data
-client/            React + Vite app
-  src/pages/       Dashboard, Patients, Usage, Stock, Medicines, reports/*, settings/*
-  src/components/  layout, pickers, report header/signature blocks, UI kit
+api/index.js           Vercel serverless entry (loads server/src/app.js)
+server/                Express API (layered)
+  src/app.js           builds the Express app (used by local server and Vercel)
+  src/index.js         local / VPS entry: connects MongoDB and listens on PORT
+  src/config/          db connection, permissions (modules × actions)
+  src/middleware/      auth (JWT + permissions), error handler
+  src/models/          Medicine, StockBatch, StockOut, Patient, Requisition, User, Role, LoginHistory, Setting
+  src/routes/          one router per API area (auth, users, roles, patients, stock, usage, reports, ...)
+  src/services/        stock allocation (first-expiry-first-out), auth settings
+  src/seed/            roles, admin user, medicine list from the paper templates, demo data
+  tests/               Vitest + supertest
+client/                React + Vite app (feature-based)
+  src/main.jsx         entry: router + providers
+  src/app/             App (routes), language and toast providers
+  src/features/        one folder per screen/domain:
+                       auth, dashboard, patients, usage, stock, medicines, reports, settings
+  src/components/      shared UI: ui/ (Modal, Select, Tabs, Pagination...), layout/, brand/ (logo, flags), pickers
+  src/lib/             API client, date and Khmer helpers, Excel export
+  src/config/org.js    hospital names printed on reports
+```
+
+Imports inside the client use the `@/` alias for `client/src` (e.g. `import { Modal } from '@/components/ui'`).
+Files in the same feature folder import each other with `./`.
+
+### Quality checks
+
+```bash
+npm run lint     # ESLint (client + server)
+npm test         # Vitest (server/tests); integration tests use the medstock_test database
+npm run check    # lint + test + build
 ```
