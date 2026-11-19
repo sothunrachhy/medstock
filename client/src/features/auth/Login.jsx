@@ -5,6 +5,7 @@ import { errMsg } from '@/lib/api';
 import { LANGS } from '@/components/brand/Flags';
 import Logo, { Wordmark } from '@/components/brand/Logo';
 import { ORG } from '@/config/org';
+import { safeRedirect } from '@shared/safeRedirect';
 import { useAuth } from './AuthContext';
 import { useLang } from '@/app/LangContext';
 
@@ -57,8 +58,7 @@ export default function Login() {
     try {
       await login(form.username, form.password);
       // back to the page the user asked for before being sent to /login
-      const from = location.state?.from;
-      navigate(from && from.startsWith('/') && !from.startsWith('/login') ? from : '/', { replace: true });
+      navigate(safeRedirect(location.state?.from), { replace: true });
     } catch (err) {
       setError(errMsg(err));
     } finally {

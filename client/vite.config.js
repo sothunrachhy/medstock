@@ -8,10 +8,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // code shared with the server (validation schemas, helpers)
+      '@shared': fileURLToPath(new URL('../shared', import.meta.url)),
     },
   },
   server: {
     port: 5173,
+    fs: { allow: ['..'] },
     proxy: {
       '/api': 'http://localhost:5000',
     },

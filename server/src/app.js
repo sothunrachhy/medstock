@@ -25,6 +25,9 @@ import userRoutes from './routes/users.js';
 
 export function createApp({ serveClient = false } = {}) {
   const app = express();
+  // Plain key=value query strings only: "?status[$ne]=x" stays a literal key instead of
+  // becoming a MongoDB operator object.
+  app.set('query parser', 'simple');
   if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 
   app.disable('x-powered-by');

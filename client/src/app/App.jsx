@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Loading } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
+import { safeRedirect } from '@shared/safeRedirect';
 import { useLang } from './LangContext';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Login from '@/features/auth/Login';
@@ -32,8 +33,14 @@ function Home() {
 // Logged out: send every page to /login and remember where the user wanted to go.
 function RedirectToLogin() {
   const location = useLocation();
-  const from = location.pathname + location.search;
-  return <Navigate to="/login" replace state={from !== '/' ? { from } : undefined} />;
+  const from = safeRedirect(location.pathname + location.search, null);
+  return <Navigate to="/login" replace state={from && from !== '/' ? { from } : undefined} />;
+}
+
+// Logged in but on /login (e.g. right after signing in): go to the remembered page.
+function LeaveLogin() {
+  const location = useLocation();
+  return <Navigate to={safeRedirect(location.state?.from)} replace />;
 }
 
 export default function App() {
@@ -49,6 +56,7 @@ export default function App() {
   }
   return (
     <Routes>
+      <Route path="/login" element={<LeaveLogin />} />
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="patients" element={<Guard module="patients"><Patients /></Guard>} />

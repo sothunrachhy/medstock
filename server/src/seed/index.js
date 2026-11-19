@@ -61,14 +61,28 @@ async function seedRoles() {
   console.log(`✓ roles: ${ROLES.map((r) => r.name).join(', ')}`);
 }
 
+// A local Docker/installed MongoDB; anything else (Atlas, a server) is treated as real data.
+const isLocalDb = () => /^mongodb:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/');
+const isProductionDb = () => process.env.NODE_ENV === 'production' || !isLocalDb();
+
 async function seedAdmin() {
   const username = (process.env.ADMIN_USERNAME || 'admin').toLowerCase();
   if (await User.exists({ username })) return console.log(`✓ admin user "${username}" already exists`);
+  let password = process.env.ADMIN_PASSWORD;
+  if (!password || password === 'admin123') {
+    if (isProductionDb()) {
+      throw new Error('Set ADMIN_PASSWORD (at least 8 characters, not "admin123") to create the admin user on this database.');
+    }
+    password = 'admin123';
+    console.warn('! ADMIN_PASSWORD is not set: using the local default "admin123". Change it after the first login.');
+  } else if (password.length < 8) {
+    throw new Error('ADMIN_PASSWORD must be at least 8 characters.');
+  }
   const role = await Role.findOne({ name: 'Admin' });
   const user = new User({ username, fullName: 'System Administrator', role: role._id });
-  await user.setPassword(process.env.ADMIN_PASSWORD || 'admin123');
+  await user.setPassword(password);
   await user.save();
-  console.log(`✓ admin user created: ${username} / ${process.env.ADMIN_PASSWORD || 'admin123'}  (change this password after first login!)`);
+  console.log(`✓ admin user created: ${username} (password from ADMIN_PASSWORD)`);
 }
 
 async function seedMedicines() {
@@ -183,7 +197,13 @@ async function main() {
   await seedRoles();
   await seedAdmin();
   await seedMedicines();
-  if (process.argv.includes('--demo')) await seedDemo();
+  if (process.argv.includes('--demo')) {
+    // demo data adds made-up patients: never on a real database unless explicitly forced
+    if (isProductionDb() && !process.argv.includes('--force')) {
+      throw new Error('Refusing to add demo data to a non-local database (add --force if you really want this).');
+    }
+    await seedDemo();
+  }
   await mongoose.disconnect();
   console.log('Done.');
 }

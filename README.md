@@ -80,7 +80,7 @@ The repo is ready for Vercel (`vercel.json`). The React app is served as static 
    # macOS / Linux
    MONGO_URI="mongodb+srv://..." ADMIN_PASSWORD="a-strong-password" npm run seed
    ```
-   Do not run `seed:demo` on a real system: it adds sample patients.
+   `ADMIN_PASSWORD` is required here (at least 8 characters); the seed refuses to create an admin with the default password on a non-local database, and never prints the password. `seed:demo` refuses to add sample patients to a non-local database.
 3. **Vercel:** *Add New → Project* → import the GitHub repo. Leave *Root Directory* as the repo root; the build settings come from `vercel.json`.
 4. **Environment variables** (*Settings → Environment Variables*), then deploy:
 
