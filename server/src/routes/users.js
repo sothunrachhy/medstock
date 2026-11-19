@@ -90,11 +90,13 @@ router.put(
     if (isActive !== undefined) {
       if (isSelf && !isActive) throw new HttpError(400, 'You cannot disable your own account');
       if (!isActive && user.isActive && currentRole?.isSystem) await assertNotLastAdmin(user, currentRole._id);
+      if (!isActive && user.isActive) user.revokeSessions();
       user.isActive = !!isActive;
     }
     if (password) {
       await assertPasswordPolicy(password);
       await user.setPassword(password);
+      user.revokeSessions();
     }
     // an admin unlocking the account, or setting a new password, clears the lockout
     if (unlock || password) {

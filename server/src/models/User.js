@@ -12,6 +12,9 @@ const userSchema = new mongoose.Schema(
     // brute-force protection (limits come from Settings → Auth)
     failedLoginCount: { type: Number, default: 0 },
     lockedUntil: Date,
+    // Increased when the password changes or the account is disabled:
+    // every login token issued before that stops working.
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
@@ -28,6 +31,11 @@ userSchema.methods.setPassword = async function setPassword(password) {
     throw err;
   }
   this.passwordHash = await bcrypt.hash(String(password), 10);
+};
+
+/** Ends every existing session of this user (call before save). */
+userSchema.methods.revokeSessions = function revokeSessions() {
+  this.tokenVersion = (this.tokenVersion || 0) + 1;
 };
 
 userSchema.methods.checkPassword = function checkPassword(password) {

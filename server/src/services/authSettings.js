@@ -16,14 +16,24 @@ const LIMITS = {
   lockoutMinutes: [1, 1440],
 };
 
+// Cached briefly: on Vercel several server instances run at once, so a change made
+// through one instance must reach the others within a minute.
+const CACHE_MS = 60 * 1000;
 let cache = null;
+let cachedAt = 0;
 
 export async function getAuthSettings() {
-  if (!cache) {
+  if (!cache || Date.now() - cachedAt > CACHE_MS) {
     const doc = await Setting.findOne({ key: 'auth' }).lean();
     cache = { ...AUTH_DEFAULTS, ...(doc?.value || {}) };
+    cachedAt = Date.now();
   }
   return cache;
+}
+
+/** Test helper: forget the cached settings. */
+export function clearAuthSettingsCache() {
+  cache = null;
 }
 
 export async function updateAuthSettings(input, userId) {
@@ -39,6 +49,7 @@ export async function updateAuthSettings(input, userId) {
   }
   await Setting.updateOne({ key: 'auth' }, { value: next, updatedBy: userId }, { upsert: true });
   cache = next;
+  cachedAt = Date.now();
   return next;
 }
 

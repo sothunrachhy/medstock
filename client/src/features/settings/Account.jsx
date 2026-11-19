@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import api, { errMsg, tokenStore } from '@/lib/api';
 import { Badge, Field } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ACTION_LABELS, MODULE_LABELS, useLang } from '@/app/LangContext';
@@ -20,7 +20,9 @@ export default function Account() {
     if (form.newPassword !== form.confirm) return toast.error(tr('ពាក្យសម្ងាត់ថ្មីមិនដូចគ្នា', 'New passwords do not match'));
     setBusy(true);
     try {
-      await api.post('/auth/change-password', form);
+      const { data } = await api.post('/auth/change-password', form);
+      // other devices are signed out; keep this one signed in with the new token
+      if (data?.token) tokenStore.set(data.token);
       toast(tr('បានប្តូរពាក្យសម្ងាត់', 'Password changed'));
       setForm({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {

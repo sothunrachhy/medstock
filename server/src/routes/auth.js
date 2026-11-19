@@ -20,6 +20,12 @@ const loginLimiter = rateLimit({
 
 const minutesLeft = (date) => Math.max(1, Math.ceil((date - Date.now()) / 60000));
 
+// sub = user, sid = login session (LoginHistory), tv = user.tokenVersion
+const signToken = (user, sessionId, settings) =>
+  jwt.sign({ sub: user.id, sid: String(sessionId), tv: user.tokenVersion || 0 }, process.env.JWT_SECRET, {
+    expiresIn: `${settings.sessionTimeoutHours}h`,
+  });
+
 router.post(
   '/login',
   loginLimiter,
@@ -71,10 +77,7 @@ router.post(
     user.lockedUntil = undefined;
     await user.save();
 
-    const token = jwt.sign({ sub: user.id, sid: session.id }, process.env.JWT_SECRET, {
-      expiresIn: `${settings.sessionTimeoutHours}h`,
-    });
-    res.json({ token, user: user.toPublic() });
+    res.json({ token: signToken(user, session.id, settings), user: user.toPublic() });
   }),
 );
 
@@ -109,8 +112,10 @@ router.post(
     if (currentPassword === newPassword) throw new HttpError(400, 'The new password must be different from the current one');
     await assertPasswordPolicy(newPassword);
     await user.setPassword(newPassword);
+    // signs out every other device; this session gets a fresh token
+    user.revokeSessions();
     await user.save();
-    res.json({ ok: true });
+    res.json({ ok: true, token: signToken(user, req.sessionId, await getAuthSettings()) });
   }),
 );
 
