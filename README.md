@@ -75,10 +75,10 @@ The repo is ready for Vercel (`vercel.json`). The React app is served as static 
    - Copy the connection string and add the database name: `mongodb+srv://USER:PASS@cluster.xxxx.mongodb.net/medstock?retryWrites=true&w=majority`
 2. **Seed the database once** from your computer (creates roles, the admin user and the medicine list):
    ```bash
-   # Windows PowerShell
-   $env:MONGO_URI="mongodb+srv://..."; $env:ADMIN_PASSWORD="a-strong-password"; npm run seed
+   # Windows PowerShell (single quotes, so characters like $ are kept as typed)
+   $env:MONGO_URI='mongodb+srv://...'; $env:ADMIN_PASSWORD='a-strong-password'; npm run seed
    # macOS / Linux
-   MONGO_URI="mongodb+srv://..." ADMIN_PASSWORD="a-strong-password" npm run seed
+   MONGO_URI='mongodb+srv://...' ADMIN_PASSWORD='a-strong-password' npm run seed
    ```
    `ADMIN_PASSWORD` is required here (at least 8 characters); the seed refuses to create an admin with the default password on a non-local database, and never prints the password. `seed:demo` refuses to add sample patients to a non-local database.
 3. **Vercel:** *Add New → Project* → import the GitHub repo. Leave *Root Directory* as the repo root; the build settings come from `vercel.json`.
@@ -87,11 +87,15 @@ The repo is ready for Vercel (`vercel.json`). The React app is served as static 
    | Name | Value |
    |---|---|
    | `MONGO_URI` | the Atlas connection string |
-   | `JWT_SECRET` | a long random string (e.g. `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`) |
+   | `JWT_SECRET` | a random string of at least 32 characters (e.g. `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`) |
    | `TRUST_PROXY` | `1` |
+   | `CLIENT_ORIGIN` | your site, e.g. `https://medstock.example.com` (optional: without it the API only accepts same-site requests) |
    | `EXPIRY_WARN_DAYS` | optional, default `90` |
 
+   If a variable is missing or invalid, the API answers every request with a 500 that names the variable (never its value) and logs the same in Vercel's function logs.
+
 5. Open the Vercel URL, sign in as `admin`, and change the password under *Settings → My account*.
+6. When updating an existing database to a new version, run `npm run db:sync-indexes` once with `MONGO_URI` set to the Atlas string (creates new indexes and the login-history retention index).
 
 Every push to `main` deploys automatically. Notes: the login rate limiter is per serverless instance (account lockout after wrong passwords is stored in the database and still applies everywhere); function time is limited to 30 s, which is plenty for the reports.
 
