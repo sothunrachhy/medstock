@@ -2,7 +2,7 @@ import { Filter, Plus, Search } from 'lucide-react';
 import Select from '../components/Select';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { medLabel, useMedicines } from '../components/pickers';
+import { useMedicines } from '../components/pickers';
 import { Badge, Empty, Loading, PageHeader, Pagination, Tabs, usePaged } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORY_LABELS, useLang } from '../context/LangContext';

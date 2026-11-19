@@ -73,7 +73,7 @@ async function seedAdmin() {
 
 async function seedMedicines() {
   const docs = medicineDocs();
-  for (const { demo, ...m } of docs) {
+  for (const { demo: _demo, ...m } of docs) {
     await Medicine.updateOne(
       { name: m.name, form: m.form, strength: m.strength, category: m.category },
       { $setOnInsert: m },
