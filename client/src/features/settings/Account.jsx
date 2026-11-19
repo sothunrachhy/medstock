@@ -5,6 +5,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { ACTION_LABELS, MODULE_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import usePasswordPolicy from '@/features/auth/usePasswordPolicy';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { changePasswordSchema, MAX } from '@shared/schemas/index.js';
 
 export default function Account() {
   const { tr } = useLang();
@@ -12,12 +14,19 @@ export default function Account() {
   const toast = useToast();
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [busy, setBusy] = useState(false);
+  const { errors, setErrors } = useFieldErrors();
   const { minPasswordLength } = usePasswordPolicy();
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.newPassword !== form.confirm) return toast.error(tr('ពាក្យសម្ងាត់ថ្មីមិនដូចគ្នា', 'New passwords do not match'));
+    const check = checkForm(changePasswordSchema, form);
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
+    if (form.newPassword !== form.confirm) {
+      setErrors({ confirm: tr('ពាក្យសម្ងាត់ថ្មីមិនដូចគ្នា', 'New passwords do not match') });
+      return toast.error(tr('ពាក្យសម្ងាត់ថ្មីមិនដូចគ្នា', 'New passwords do not match'));
+    }
     setBusy(true);
     try {
       const { data } = await api.post('/auth/change-password', form);
@@ -26,6 +35,7 @@ export default function Account() {
       toast(tr('បានប្តូរពាក្យសម្ងាត់', 'Password changed'));
       setForm({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     } finally {
       setBusy(false);
@@ -67,13 +77,13 @@ export default function Account() {
       </div>
       <form onSubmit={submit} className="card space-y-4 p-5">
         <h3 className="font-semibold">{tr('ប្តូរពាក្យសម្ងាត់', 'Change password')}</h3>
-        <Field label={tr('ពាក្យសម្ងាត់បច្ចុប្បន្ន', 'Current password')} required>
-          <input type="password" className="input" value={form.currentPassword} onChange={set('currentPassword')} required autoComplete="current-password" />
+        <Field label={tr('ពាក្យសម្ងាត់បច្ចុប្បន្ន', 'Current password')} required error={errors.currentPassword}>
+          <input type="password" className="input" value={form.currentPassword} onChange={set('currentPassword')} required maxLength={MAX.password} autoComplete="current-password" />
         </Field>
-        <Field label={tr('ពាក្យសម្ងាត់ថ្មី', 'New password')} required hint={tr(`យ៉ាងតិច ${minPasswordLength} តួ`, `At least ${minPasswordLength} characters`)}>
-          <input type="password" className="input" value={form.newPassword} onChange={set('newPassword')} required minLength={minPasswordLength} autoComplete="new-password" />
+        <Field label={tr('ពាក្យសម្ងាត់ថ្មី', 'New password')} required error={errors.newPassword} hint={tr(`យ៉ាងតិច ${minPasswordLength} តួ`, `At least ${minPasswordLength} characters`)}>
+          <input type="password" className="input" value={form.newPassword} onChange={set('newPassword')} required minLength={minPasswordLength} maxLength={MAX.password} autoComplete="new-password" />
         </Field>
-        <Field label={tr('បញ្ជាក់ពាក្យសម្ងាត់ថ្មី', 'Confirm new password')} required>
+        <Field label={tr('បញ្ជាក់ពាក្យសម្ងាត់ថ្មី', 'Confirm new password')} required error={errors.confirm}>
           <input type="password" className="input" value={form.confirm} onChange={set('confirm')} required minLength={minPasswordLength} autoComplete="new-password" />
         </Field>
         <button className="btn-primary" disabled={busy}>

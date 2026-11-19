@@ -8,6 +8,8 @@ import { useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import usePasswordPolicy from '@/features/auth/usePasswordPolicy';
 import { fmtDateTime } from '@/lib/dates';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { MAX, userCreateSchema, userUpdateSchema } from '@shared/schemas/index.js';
 
 export default function Users() {
   const { tr } = useLang();
@@ -135,23 +137,29 @@ function UserForm({ user, roles, onClose, onSaved, isSelf }) {
   const [form, setForm] = useState({});
   const { minPasswordLength } = usePasswordPolicy();
   const isNew = !user?.id;
+  const { errors, setErrors } = useFieldErrors();
 
   useEffect(() => {
+    setErrors({});
     if (user) setForm({ fullName: user.fullName || '', username: user.username || '', role: user.role?.id || roles.find((r) => !r.isSystem)?._id || '', isActive: user.isActive ?? true, password: '' });
-  }, [user, roles]);
+  }, [user, roles, setErrors]);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
+    const body = { ...form };
+    if (!body.password) delete body.password;
+    const check = checkForm(isNew ? userCreateSchema : userUpdateSchema, body);
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     try {
-      const body = { ...form };
-      if (!body.password) delete body.password;
       if (isNew) await api.post('/users', body);
       else await api.put(`/users/${user.id}`, body);
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     }
   };
@@ -174,13 +182,13 @@ function UserForm({ user, roles, onClose, onSaved, isSelf }) {
       }
     >
       <form id="user-form" onSubmit={submit} className="space-y-4">
-        <Field label={tr('ឈ្មោះពេញ', 'Full name')} required>
-          <input className="input" value={form.fullName || ''} onChange={set('fullName')} required autoFocus />
+        <Field label={tr('ឈ្មោះពេញ', 'Full name')} required error={errors.fullName}>
+          <input className="input" value={form.fullName || ''} onChange={set('fullName')} required maxLength={MAX.name} autoFocus />
         </Field>
-        <Field label={tr('ឈ្មោះអ្នកប្រើ (សម្រាប់ចូល)', 'Username (for login)')} required>
-          <input className="input" value={form.username || ''} onChange={set('username')} required minLength={3} autoComplete="off" />
+        <Field label={tr('ឈ្មោះអ្នកប្រើ (សម្រាប់ចូល)', 'Username (for login)')} required error={errors.username}>
+          <input className="input" value={form.username || ''} onChange={set('username')} required minLength={3} maxLength={50} pattern="[A-Za-z0-9._\-]+" autoComplete="off" />
         </Field>
-        <Field label={tr('តួនាទី', 'Role')} required>
+        <Field label={tr('តួនាទី', 'Role')} required error={errors.role}>
           <Select
             value={form.role || ''}
             onChange={(v) => setForm((f) => ({ ...f, role: v }))}
@@ -192,13 +200,14 @@ function UserForm({ user, roles, onClose, onSaved, isSelf }) {
         <Field
           label={isNew ? tr('ពាក្យសម្ងាត់', 'Password') : tr('ពាក្យសម្ងាត់ថ្មី', 'New password')}
           required={isNew}
+          error={errors.password}
           hint={
             isNew
               ? tr(`យ៉ាងតិច ${minPasswordLength} តួ`, `At least ${minPasswordLength} characters`)
               : tr('ទុកទទេ បើមិនប្តូរ (ការកំណត់ពាក្យសម្ងាត់ថ្មី នឹងដោះសោគណនីផងដែរ)', 'Leave empty to keep the current one (setting a new password also unlocks the account)')
           }
         >
-          <input type="password" className="input" value={form.password || ''} onChange={set('password')} required={isNew} minLength={minPasswordLength} autoComplete="new-password" />
+          <input type="password" className="input" value={form.password || ''} onChange={set('password')} required={isNew} minLength={minPasswordLength} maxLength={MAX.password} autoComplete="new-password" />
         </Field>
         {!isNew && !isSelf && (
           <label className="flex items-center gap-2 text-sm">

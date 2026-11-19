@@ -4,6 +4,9 @@ import { authorize } from '../middleware/auth.js';
 import Role from '../models/Role.js';
 import User from '../models/User.js';
 import { asyncHandler, HttpError } from '../utils/http.js';
+import { idParams, roleSchema, roleUpdateSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
@@ -45,6 +48,7 @@ router.get(
 router.post(
   '/',
   authorize('roles', 'create'),
+  validate({ body: roleSchema }),
   asyncHandler(async (req, res) => {
     const { name, description, permissions } = req.body || {};
     const clean = cleanPermissions(permissions);
@@ -57,6 +61,7 @@ router.post(
 router.put(
   '/:id',
   authorize('roles', 'update'),
+  validate({ params: idParams, body: roleUpdateSchema }),
   asyncHandler(async (req, res) => {
     const role = await Role.findById(req.params.id);
     if (!role) throw new HttpError(404, 'Role not found');
@@ -85,6 +90,7 @@ router.put(
 router.delete(
   '/:id',
   authorize('roles', 'delete'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const role = await Role.findById(req.params.id);
     if (!role) throw new HttpError(404, 'Role not found');

@@ -28,16 +28,22 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   );
 }
 
-export function Field({ label, required, children, hint, className = '' }) {
+export function Field({ label, required, children, hint, error, className = '' }) {
   return (
-    <label className={`block ${className}`}>
+    <label className={`block ${className} ${error ? 'field-invalid' : ''}`}>
       {label && (
         <span className="label">
           {label} {required && <span className="text-rose-500">*</span>}
         </span>
       )}
       {children}
-      {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
+      {error ? (
+        <span className="mt-1 block text-xs text-rose-600" role="alert">
+          {error}
+        </span>
+      ) : (
+        hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>
+      )}
     </label>
   );
 }

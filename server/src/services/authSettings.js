@@ -1,3 +1,4 @@
+import { AUTH_LIMITS } from '../../../shared/schemas/index.js';
 import Setting from '../models/Setting.js';
 import { HttpError } from '../utils/http.js';
 
@@ -8,13 +9,8 @@ export const AUTH_DEFAULTS = {
   lockoutMinutes: 15,
 };
 
-// allowed range for each setting
-const LIMITS = {
-  sessionTimeoutHours: [1, 720],
-  minPasswordLength: [4, 64],
-  maxFailedAttempts: [0, 50],
-  lockoutMinutes: [1, 1440],
-};
+// allowed range for each setting (shared with the settings form)
+const LIMITS = AUTH_LIMITS;
 
 // Cached briefly: on Vercel several server instances run at once, so a change made
 // through one instance must reach the others within a minute.

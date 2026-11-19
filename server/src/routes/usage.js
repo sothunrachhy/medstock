@@ -6,6 +6,9 @@ import StockOut from '../models/StockOut.js';
 import { allocate, release } from '../services/stock.js';
 import { parseDay, parseRange, todayStr } from '../utils/date.js';
 import { asyncHandler, HttpError, parsePaging, toPositiveInt } from '../utils/http.js';
+import { idParams, usageListQuery, usageSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 import { parseCategories } from './medicines.js';
 
 const router = Router();
@@ -14,6 +17,7 @@ const router = Router();
 router.get(
   '/',
   authorize('usage', 'read'),
+  validate({ query: usageListQuery }),
   asyncHandler(async (req, res) => {
     const { page, limit, skip } = parsePaging(req.query, 50, 1000);
     const filter = { type: req.query.type || 'USAGE' };
@@ -47,8 +51,9 @@ router.get(
 router.post(
   '/',
   authorize('usage', 'create'),
+  validate({ body: usageSchema }),
   asyncHandler(async (req, res) => {
-    const { patient: patientId, date, shift = '', doctor = '', note = '', items } = req.body || {};
+    const { patient: patientId, date, shift = '', doctor = '', note = '', items } = req.body;
     if (!patientId) throw new HttpError(400, 'Please select a patient');
     const patient = await Patient.findById(patientId).lean();
     if (!patient) throw new HttpError(404, 'Patient not found');
@@ -116,6 +121,7 @@ router.post(
 router.delete(
   '/:id',
   authorize('usage', 'delete'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const doc = await StockOut.findById(req.params.id);
     if (!doc) throw new HttpError(404, 'Record not found');

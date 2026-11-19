@@ -8,6 +8,9 @@ import StockBatch from '../models/StockBatch.js';
 import StockOut from '../models/StockOut.js';
 import { listDays, parseDay, parseRange, TZ } from '../utils/date.js';
 import { asyncHandler, HttpError } from '../utils/http.js';
+import { reportRangeQuery, requisitionSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 import { parseCategories } from './medicines.js';
 
 const router = Router();
@@ -32,6 +35,7 @@ const sumByMedicine = (Model, match) =>
 router.get(
   '/stock-summary',
   authorize('reports', 'read'),
+  validate({ query: reportRangeQuery }),
   asyncHandler(async (req, res) => {
     const { from, to, start, end } = parseRange(req.query, 31);
     const categories = parseCategories(req.query.categories);
@@ -102,8 +106,9 @@ router.get(
 router.put(
   '/requisition',
   authorize('reports', 'update'),
+  validate({ body: requisitionSchema }),
   asyncHandler(async (req, res) => {
-    const { categories, from, to, items = [], note = '' } = req.body || {};
+    const { categories, from, to, items, note = '' } = req.body;
     const { start } = parseRange({ from, to }, 31);
     const cats = parseCategories(Array.isArray(categories) ? categories.join(',') : categories);
     const clean = items
@@ -128,6 +133,7 @@ router.put(
 router.get(
   '/daily-sheet',
   authorize('reports', 'read'),
+  validate({ query: reportRangeQuery }),
   asyncHandler(async (req, res) => {
     const { from, to, start, end } = parseRange({ from: req.query.date || req.query.from, to: req.query.date || req.query.to }, 31);
     const categories = parseCategories(req.query.categories);
@@ -174,6 +180,7 @@ router.get(
 router.get(
   '/narcotic',
   authorize('reports', 'read'),
+  validate({ query: reportRangeQuery }),
   asyncHandler(async (req, res) => {
     const { from, to, start, end } = parseRange(req.query, 400);
     const filter = { type: 'USAGE', date: { $gte: start, $lt: end } };
@@ -201,6 +208,7 @@ router.get(
 router.get(
   '/medicine-usage',
   authorize('reports', 'read'),
+  validate({ query: reportRangeQuery }),
   asyncHandler(async (req, res) => {
     const { from, to, start, end } = parseRange(req.query, 400);
     const categories = parseCategories(req.query.categories);
@@ -241,6 +249,7 @@ router.get(
 router.get(
   '/patient-usage',
   authorize('reports', 'read'),
+  validate({ query: reportRangeQuery }),
   asyncHandler(async (req, res) => {
     const { from, to, start, end } = parseRange(req.query, 400);
     const categories = parseCategories(req.query.categories);

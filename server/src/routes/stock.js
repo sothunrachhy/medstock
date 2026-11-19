@@ -6,6 +6,9 @@ import StockOut from '../models/StockOut.js';
 import { allocate, expiryWarnDays, release } from '../services/stock.js';
 import { addDays, dayStart, parseDay, todayStr } from '../utils/date.js';
 import { asyncHandler, HttpError, parsePaging, toPositiveInt } from '../utils/http.js';
+import { batchListQuery, batchUpdateSchema, idParams, movementsQuery, stockInSchema, writeOffSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
@@ -14,6 +17,7 @@ const router = Router();
 router.get(
   '/batches',
   authorize('stock', 'read'),
+  validate({ query: batchListQuery }),
   asyncHandler(async (req, res) => {
     const { page, limit, skip } = parsePaging(req.query, 50, 500);
     const today = dayStart(todayStr());
@@ -49,8 +53,9 @@ router.get(
 router.post(
   '/batches',
   authorize('stock', 'create'),
+  validate({ body: stockInSchema }),
   asyncHandler(async (req, res) => {
-    const items = Array.isArray(req.body?.items) ? req.body.items : [req.body];
+    const { items } = req.body;
     if (!items.length) throw new HttpError(400, 'No items');
 
     const ids = [...new Set(items.map((i) => String(i.medicine)))];
@@ -86,6 +91,7 @@ router.post(
 router.put(
   '/batches/:id',
   authorize('stock', 'update'),
+  validate({ params: idParams, body: batchUpdateSchema }),
   asyncHandler(async (req, res) => {
     const batch = await StockBatch.findById(req.params.id);
     if (!batch) throw new HttpError(404, 'Batch not found');
@@ -112,6 +118,7 @@ router.put(
 router.delete(
   '/batches/:id',
   authorize('stock', 'delete'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const batch = await StockBatch.findById(req.params.id);
     if (!batch) throw new HttpError(404, 'Batch not found');
@@ -129,6 +136,7 @@ router.delete(
 router.post(
   '/writeoff',
   authorize('stock', 'update'),
+  validate({ body: writeOffSchema }),
   asyncHandler(async (req, res) => {
     const { batch: batchId, quantity, type = 'EXPIRED', date, note } = req.body || {};
     if (!['EXPIRED', 'DAMAGED', 'ADJUSTMENT'].includes(type)) throw new HttpError(400, 'Invalid write-off type');
@@ -163,6 +171,7 @@ router.post(
 router.get(
   '/movements',
   authorize('stock', 'read'),
+  validate({ query: movementsQuery }),
   asyncHandler(async (req, res) => {
     if (!req.query.medicine) throw new HttpError(400, 'medicine is required');
     const limit = Math.min(500, Number(req.query.limit) || 100);

@@ -4,6 +4,9 @@ import Role from '../models/Role.js';
 import User from '../models/User.js';
 import { assertPasswordPolicy } from '../services/authSettings.js';
 import { asyncHandler, escapeRegex, HttpError } from '../utils/http.js';
+import { idParams, userCreateSchema, userUpdateSchema, usersQuery } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
@@ -31,6 +34,7 @@ async function assertNotLastAdmin(user, roleId) {
 router.get(
   '/',
   authorize('users', 'read'),
+  validate({ query: usersQuery }),
   asyncHandler(async (req, res) => {
     const filter = {};
     if (req.query.search) {
@@ -56,6 +60,7 @@ router.get(
 router.post(
   '/',
   authorize('users', 'create'),
+  validate({ body: userCreateSchema }),
   asyncHandler(async (req, res) => {
     const { username, fullName, password, role, isActive = true } = req.body || {};
     assertCanManage(req.user, { newRole: await ensureRole(role) });
@@ -71,6 +76,7 @@ router.post(
 router.put(
   '/:id',
   authorize('users', 'update'),
+  validate({ params: idParams, body: userUpdateSchema }),
   asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id).populate('role');
     if (!user) throw new HttpError(404, 'User not found');
@@ -112,6 +118,7 @@ router.put(
 router.delete(
   '/:id',
   authorize('users', 'delete'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     if (req.params.id === req.user.id) throw new HttpError(400, 'You cannot delete your own account');
     const user = await User.findById(req.params.id).populate('role');

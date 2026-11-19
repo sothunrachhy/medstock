@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectDB } from './config/db.js';
+import { checkEnv } from './config/env.js';
 import { corsOrigin, CSP_DIRECTIVES, SECURITY_HEADERS } from './config/security.js';
 import { authenticate } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
@@ -56,10 +57,12 @@ export function createApp({ serveClient = false } = {}) {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-  // Fail clearly instead of crashing when the deployment is missing its configuration.
+  // Fail clearly instead of crashing when the deployment is misconfigured
+  // (lists variable names and rules only, never their values).
+  const envCheck = checkEnv();
+  if (!envCheck.ok) console.error('Invalid environment:', envCheck.errors.join('; '));
   app.use('/api', (_req, _res, next) => {
-    if (!process.env.JWT_SECRET) return next(new HttpError(500, 'Server is not configured: JWT_SECRET is missing'));
-    if (!process.env.MONGO_URI && process.env.VERCEL) return next(new HttpError(500, 'Server is not configured: MONGO_URI is missing'));
+    if (!envCheck.ok) return next(new HttpError(500, `Server is not configured: ${envCheck.errors.join('; ')}`, { code: 'MISCONFIGURED' }));
     next();
   });
 
@@ -81,7 +84,7 @@ export function createApp({ serveClient = false } = {}) {
   app.use('/api/users', userRoutes);
   app.use('/api/roles', roleRoutes);
   app.use('/api/login-history', loginHistoryRoutes);
-  app.use('/api', (_req, res) => res.status(404).json({ message: 'Not found' }));
+  app.use('/api', (_req, res) => res.status(404).json({ message: 'Not found', code: 'NOT_FOUND' }));
 
   // Serve the built React app (client/dist) when running as a normal server.
   // On Vercel the static files are served by Vercel itself.

@@ -5,6 +5,8 @@ import { Badge, Field, Loading, Modal } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ACTION_LABELS, MODULE_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { MAX, roleSchema } from '@shared/schemas/index.js';
 
 const MODULES = Object.keys(MODULE_LABELS);
 const ACTIONS = Object.keys(ACTION_LABELS);
@@ -98,6 +100,7 @@ function RoleForm({ role, onClose, onSaved }) {
   const { tr } = useLang();
   const toast = useToast();
   const [name, setName] = useState('');
+  const { errors, setErrors } = useFieldErrors();
   const [description, setDescription] = useState('');
   const [perm, setPerm] = useState({}); // module -> Set(actions)
 
@@ -128,6 +131,9 @@ function RoleForm({ role, onClose, onSaved }) {
     const permissions = Object.entries(perm)
       .map(([module, s]) => ({ module, actions: [...s] }))
       .filter((p) => p.actions.length);
+    const check = checkForm(roleSchema, { name, description, permissions });
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     try {
       if (role._id) await api.put(`/roles/${role._id}`, { name, description, permissions });
       else await api.post('/roles', { name, description, permissions });
@@ -135,6 +141,7 @@ function RoleForm({ role, onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     }
   };
@@ -158,11 +165,11 @@ function RoleForm({ role, onClose, onSaved }) {
     >
       <form id="role-form" onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={tr('ឈ្មោះតួនាទី', 'Role name')} required>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+          <Field label={tr('ឈ្មោះតួនាទី', 'Role name')} required error={errors.name}>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={MAX.short} autoFocus />
           </Field>
-          <Field label={tr('ការពិពណ៌នា', 'Description')}>
-            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Field label={tr('ការពិពណ៌នា', 'Description')} error={errors.description}>
+            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={MAX.text} />
           </Field>
         </div>
         <div className="overflow-x-auto rounded-lg border border-slate-200">

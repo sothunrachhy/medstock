@@ -4,6 +4,9 @@ import Patient from '../models/Patient.js';
 import StockOut from '../models/StockOut.js';
 import { dayEnd, parseDay, todayStr } from '../utils/date.js';
 import { asyncHandler, escapeRegex, HttpError, parsePaging } from '../utils/http.js';
+import { idParams, patientListQuery, patientSchema, patientUpdateSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
@@ -22,6 +25,7 @@ function pick(body) {
 router.get(
   '/',
   authorize('patients', 'read'),
+  validate({ query: patientListQuery }),
   asyncHandler(async (req, res) => {
     const { page, limit, skip } = parsePaging(req.query, 20, 500);
     const filter = {};
@@ -46,6 +50,7 @@ router.get(
 router.get(
   '/:id',
   authorize('patients', 'read'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const patient = await Patient.findById(req.params.id).lean();
     if (!patient) throw new HttpError(404, 'Patient not found');
@@ -56,6 +61,7 @@ router.get(
 router.post(
   '/',
   authorize('patients', 'create'),
+  validate({ body: patientSchema }),
   asyncHandler(async (req, res) => {
     const data = pick(req.body || {});
     if (!data.dateIn) data.dateIn = parseDay(todayStr());
@@ -67,6 +73,7 @@ router.post(
 router.put(
   '/:id',
   authorize('patients', 'update'),
+  validate({ params: idParams, body: patientUpdateSchema }),
   asyncHandler(async (req, res) => {
     const patient = await Patient.findById(req.params.id);
     if (!patient) throw new HttpError(404, 'Patient not found');
@@ -82,6 +89,7 @@ router.put(
 router.delete(
   '/:id',
   authorize('patients', 'delete'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const used = await StockOut.countDocuments({ patient: req.params.id });
     if (used) {

@@ -8,6 +8,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { CATEGORY_LABELS, OUT_TYPE_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import { daysUntil, fmtDate, toDayStr, todayStr } from '@/lib/dates';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { batchUpdateSchema, MAX, writeOffSchema } from '@shared/schemas/index.js';
 
 export function ExpiryBadge({ date, warnDays = 90 }) {
   const { tr } = useLang();
@@ -200,18 +202,25 @@ function BatchEdit({ batch, onClose, onSaved }) {
   const { tr } = useLang();
   const toast = useToast();
   const [form, setForm] = useState({});
+  const { errors, setErrors } = useFieldErrors();
   useEffect(() => {
+    setErrors({});
     if (batch) setForm({ quantity: batch.quantity, receivedDate: toDayStr(batch.receivedDate), expiryDate: toDayStr(batch.expiryDate), batchNo: batch.batchNo, source: batch.source, note: batch.note });
-  }, [batch]);
+  }, [batch, setErrors]);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const submit = async (e) => {
     e.preventDefault();
+    const body = { ...form, quantity: Number(form.quantity) };
+    const check = checkForm(batchUpdateSchema, body);
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     try {
-      await api.put(`/stock/batches/${batch._id}`, { ...form, quantity: Number(form.quantity) });
+      await api.put(`/stock/batches/${batch._id}`, body);
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     }
   };
@@ -233,20 +242,20 @@ function BatchEdit({ batch, onClose, onSaved }) {
       }
     >
       <form id="batch-form" onSubmit={submit} className="grid grid-cols-2 gap-3">
-        <Field label={tr('ចំនួនបញ្ចូល', 'Quantity')} className="col-span-2" hint={batch && `${tr('បានប្រើ', 'Already used')}: ${batch.quantity - batch.remaining}`}>
+        <Field label={tr('ចំនួនបញ្ចូល', 'Quantity')} className="col-span-2" error={errors.quantity} hint={batch && `${tr('បានប្រើ', 'Already used')}: ${batch.quantity - batch.remaining}`}>
           <input type="number" min="1" className="input" value={form.quantity ?? ''} onChange={set('quantity')} required />
         </Field>
-        <Field label={tr('ថ្ងៃបញ្ចូល', 'Input date')}>
+        <Field label={tr('ថ្ងៃបញ្ចូល', 'Input date')} error={errors.receivedDate}>
           <input type="date" className="input" value={form.receivedDate || ''} onChange={set('receivedDate')} required />
         </Field>
-        <Field label={tr('ថ្ងៃផុតកំណត់', 'Expiry')}>
+        <Field label={tr('ថ្ងៃផុតកំណត់', 'Expiry')} error={errors.expiryDate}>
           <input type="date" className="input" value={form.expiryDate || ''} onChange={set('expiryDate')} required />
         </Field>
-        <Field label={tr('លេខឡូត៍', 'Batch no.')}>
-          <input className="input" value={form.batchNo || ''} onChange={set('batchNo')} />
+        <Field label={tr('លេខឡូត៍', 'Batch no.')} error={errors.batchNo}>
+          <input className="input" value={form.batchNo || ''} onChange={set('batchNo')} maxLength={MAX.code} />
         </Field>
-        <Field label={tr('ប្រភព', 'Source')}>
-          <input className="input" value={form.source || ''} onChange={set('source')} />
+        <Field label={tr('ប្រភព', 'Source')} error={errors.source}>
+          <input className="input" value={form.source || ''} onChange={set('source')} maxLength={MAX.label} />
         </Field>
       </form>
     </Modal>
@@ -257,18 +266,25 @@ function WriteOff({ batch, onClose, onSaved }) {
   const { tr } = useLang();
   const toast = useToast();
   const [form, setForm] = useState({});
+  const { errors, setErrors } = useFieldErrors();
   useEffect(() => {
+    setErrors({});
     if (batch) setForm({ quantity: batch.remaining, type: daysUntil(batch.expiryDate) < 0 ? 'EXPIRED' : 'DAMAGED', date: todayStr(), note: '' });
-  }, [batch]);
+  }, [batch, setErrors]);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const submit = async (e) => {
     e.preventDefault();
+    const body = { ...form, batch: batch._id, quantity: Number(form.quantity) };
+    const check = checkForm(writeOffSchema, body);
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     try {
-      await api.post('/stock/writeoff', { ...form, batch: batch._id, quantity: Number(form.quantity) });
+      await api.post('/stock/writeoff', body);
       toast(tr('បានកាត់ចេញពីស្តុក', 'Written off'));
       onSaved();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     }
   };
@@ -297,14 +313,14 @@ function WriteOff({ batch, onClose, onSaved }) {
             options={['EXPIRED', 'DAMAGED', 'ADJUSTMENT'].map((t) => ({ value: t, label: tr(...OUT_TYPE_LABELS[t]) }))}
           />
         </Field>
-        <Field label={tr('ចំនួន', 'Quantity')} hint={batch && `${tr('អតិបរមា', 'Max')}: ${batch.remaining}`}>
+        <Field label={tr('ចំនួន', 'Quantity')} error={errors.quantity} hint={batch && `${tr('អតិបរមា', 'Max')}: ${batch.remaining}`}>
           <input type="number" min="1" max={batch?.remaining} className="input" value={form.quantity ?? ''} onChange={set('quantity')} required />
         </Field>
-        <Field label={tr('កាលបរិច្ឆេទ', 'Date')}>
+        <Field label={tr('កាលបរិច្ឆេទ', 'Date')} error={errors.date}>
           <input type="date" className="input" value={form.date || ''} onChange={set('date')} required />
         </Field>
-        <Field label={tr('កំណត់សម្គាល់', 'Note')} className="col-span-2">
-          <input className="input" value={form.note || ''} onChange={set('note')} />
+        <Field label={tr('កំណត់សម្គាល់', 'Note')} className="col-span-2" error={errors.note}>
+          <input className="input" value={form.note || ''} onChange={set('note')} maxLength={MAX.text} />
         </Field>
       </form>
     </Modal>

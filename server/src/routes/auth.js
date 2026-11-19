@@ -6,6 +6,9 @@ import LoginHistory from '../models/LoginHistory.js';
 import User from '../models/User.js';
 import { assertPasswordPolicy, getAuthSettings, updateAuthSettings } from '../services/authSettings.js';
 import { asyncHandler, HttpError } from '../utils/http.js';
+import { authSettingsSchema, changePasswordSchema, loginSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
@@ -15,7 +18,7 @@ const loginLimiter = rateLimit({
   limit: 30,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  message: { message: 'Too many login attempts from this computer, please try again in 15 minutes' },
+  message: { message: 'Too many login attempts from this computer, please try again in 15 minutes', code: 'TOO_MANY_REQUESTS' },
 });
 
 const minutesLeft = (date) => Math.max(1, Math.ceil((date - Date.now()) / 60000));
@@ -29,12 +32,12 @@ const signToken = (user, sessionId, settings) =>
 router.post(
   '/login',
   loginLimiter,
+  validate({ body: loginSchema }),
   asyncHandler(async (req, res) => {
-    const { username, password } = req.body || {};
-    if (!username || !password) throw new HttpError(400, 'Username and password are required');
+    const { username, password } = req.body;
 
     const settings = await getAuthSettings();
-    const uname = String(username).toLowerCase().trim();
+    const uname = username;
     const meta = { username: uname, ip: req.ip, userAgent: req.get('user-agent') || '' };
     const fail = (reason, user) => LoginHistory.create({ ...meta, user: user?._id, status: 'FAILED', reason });
     const user = await User.findOne({ username: uname }).select('+passwordHash').populate('role');
@@ -105,6 +108,7 @@ router.post(
 router.post(
   '/change-password',
   authenticate,
+  validate({ body: changePasswordSchema }),
   asyncHandler(async (req, res) => {
     const { currentPassword, newPassword } = req.body || {};
     const user = await User.findById(req.user._id).select('+passwordHash');
@@ -132,7 +136,8 @@ router.put(
   '/settings',
   authenticate,
   authorize('authSettings', 'update'),
-  asyncHandler(async (req, res) => res.json(await updateAuthSettings(req.body || {}, req.user._id))),
+  validate({ body: authSettingsSchema }),
+  asyncHandler(async (req, res) => res.json(await updateAuthSettings(req.body, req.user._id))),
 );
 
 export default router;

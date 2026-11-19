@@ -7,6 +7,8 @@ import { Field, Modal } from '@/components/ui';
 import { CATEGORY_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import { fmtDate, todayStr } from '@/lib/dates';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { MAX, usageSchema } from '@shared/schemas/index.js';
 
 const newLine = () => ({ key: Math.random().toString(36).slice(2), medicine: '', quantity: 1 });
 
@@ -23,9 +25,11 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
   const [note, setNote] = useState('');
   const [lines, setLines] = useState([newLine()]);
   const [busy, setBusy] = useState(false);
+  const { errors, setErrors } = useFieldErrors();
 
   useEffect(() => {
     if (!open) return;
+    setErrors({});
     reload();
     setPatientId(patient?._id || '');
     setPatientObj(patient || null);
@@ -47,13 +51,18 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
     const items = lines.filter((l) => l.medicine).map((l) => ({ medicine: l.medicine, quantity: Number(l.quantity) }));
     if (!patientId) return toast.error(tr('សូមជ្រើសរើសអ្នកជំងឺ', 'Please select a patient'));
     if (!items.length) return toast.error(tr('សូមបន្ថែមឱសថយ៉ាងហោចណាស់មួយ', 'Add at least one medicine'));
+    const body = { patient: patientId, date, shift, doctor, note, items };
+    const check = checkForm(usageSchema, body);
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     setBusy(true);
     try {
-      await api.post('/usage', { patient: patientId, date, shift, doctor, note, items });
+      await api.post('/usage', body);
       toast(tr('បានកត់ត្រាការប្រើប្រាស់', 'Usage recorded'));
       onSaved?.();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     } finally {
       setBusy(false);
@@ -98,8 +107,8 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
               </span>
             )}
           </Field>
-          <Field label={tr('កាលបរិច្ឆេទ', 'Date')} required className="sm:col-span-2">
-            <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} required />
+          <Field label={tr('កាលបរិច្ឆេទ', 'Date')} required error={errors.date} className="sm:col-span-2">
+            <input type="date" className="input" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} required />
           </Field>
           <Field label={tr('វេន', 'Shift')} className="sm:col-span-1">
             <Select
@@ -124,7 +133,10 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
           <div className="space-y-2 p-3">
             {lines.map((l, idx) => {
               const m = medMap.get(l.medicine);
-              const over = m && Number(l.quantity) > (m.usable ?? 0);
+              // errors are reported per sent item (lines with a medicine)
+              const itemIdx = lines.filter((x) => x.medicine).findIndex((x) => x.key === l.key);
+              const qtyError = itemIdx >= 0 ? errors[`items.${itemIdx}.quantity`] : undefined;
+              const over = (m && Number(l.quantity) > (m.usable ?? 0)) || !!qtyError;
               return (
                 <div key={l.key} className="grid grid-cols-12 items-start gap-2">
                   <div className="col-span-8 sm:col-span-7">
@@ -133,7 +145,8 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
                   </div>
                   <div className={`hidden pt-2 text-sm tabular-nums sm:col-span-2 sm:block ${over ? 'font-semibold text-rose-600' : 'text-slate-600'}`}>{m ? m.usable : '—'}</div>
                   <div className="col-span-3 sm:col-span-2">
-                    <input type="number" min="1" step="1" className={`input ${over ? 'border-rose-400' : ''}`} value={l.quantity} onChange={(e) => update(l.key, { quantity: e.target.value })} />
+                    <input type="number" min="1" step="1" className={`input ${over ? 'border-rose-400' : ''}`} value={l.quantity} onChange={(e) => update(l.key, { quantity: e.target.value })} title={qtyError} />
+                    {qtyError && <span className="mt-0.5 block text-xs text-rose-600">{qtyError}</span>}
                   </div>
                   <div className="col-span-1 pt-1">
                     <button type="button" className="btn-icon hover:text-rose-600" disabled={lines.length === 1} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} aria-label="Remove">
@@ -150,11 +163,11 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={tr('ឈ្មោះគ្រូពេទ្យ', 'Doctor')} required={needsDoctor} hint={needsDoctor ? tr('ចាំបាច់សម្រាប់ថ្នាំញៀន', 'Required for narcotics') : undefined}>
-            <input className="input" value={doctor} onChange={(e) => setDoctor(e.target.value)} required={needsDoctor} />
+          <Field label={tr('ឈ្មោះគ្រូពេទ្យ', 'Doctor')} required={needsDoctor} error={errors.doctor} hint={needsDoctor ? tr('ចាំបាច់សម្រាប់ថ្នាំញៀន', 'Required for narcotics') : undefined}>
+            <input className="input" value={doctor} onChange={(e) => setDoctor(e.target.value)} required={needsDoctor} maxLength={MAX.label} />
           </Field>
-          <Field label={tr('កំណត់សម្គាល់', 'Note')}>
-            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+          <Field label={tr('កំណត់សម្គាល់', 'Note')} error={errors.note}>
+            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={MAX.text} />
           </Field>
         </div>
       </form>

@@ -7,6 +7,8 @@ import Select from '@/components/ui/Select';
 import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import { todayStr } from '@/lib/dates';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { MAX, stockInSchema } from '@shared/schemas/index.js';
 
 const newLine = (medicine = '') => ({ key: Math.random().toString(36).slice(2), medicine, quantity: '', expiryDate: '', batchNo: '' });
 
@@ -21,15 +23,17 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
   const [note, setNote] = useState('');
   const [lines, setLines] = useState([newLine()]);
   const [busy, setBusy] = useState(false);
+  const { errors, setErrors } = useFieldErrors();
 
   useEffect(() => {
     if (!open) return;
+    setErrors({});
     setFilter(category || '');
     setReceivedDate(todayStr());
     setSource('');
     setNote('');
     setLines([newLine(medicineId || '')]);
-  }, [open, category, medicineId]);
+  }, [open, category, medicineId, setErrors]);
 
   const options = useMemo(() => medicines.filter((m) => m.isActive !== false && (!filter || m.category === filter)), [medicines, filter]);
   const update = (key, patch) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -40,6 +44,9 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
       .filter((l) => l.medicine || l.quantity)
       .map((l) => ({ medicine: l.medicine, quantity: Number(l.quantity), expiryDate: l.expiryDate, batchNo: l.batchNo, receivedDate, source, note }));
     if (!items.length) return toast.error(tr('សូមបន្ថែមឱសថយ៉ាងហោចណាស់មួយ', 'Add at least one medicine'));
+    const check = checkForm(stockInSchema, { items });
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     setBusy(true);
     try {
       await api.post('/stock/batches', { items });
@@ -47,6 +54,7 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
       onSaved?.();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     } finally {
       setBusy(false);
@@ -90,11 +98,11 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
           </label>
           <label>
             <span className="label">{tr('ប្រភព', 'Source / supplier')}</span>
-            <input className="input" value={source} onChange={(e) => setSource(e.target.value)} placeholder={tr('ឱសថស្ថានមន្ទីរពេទ្យ', 'Hospital pharmacy')} />
+            <input className="input" value={source} onChange={(e) => setSource(e.target.value)} maxLength={MAX.label} placeholder={tr('ឱសថស្ថានមន្ទីរពេទ្យ', 'Hospital pharmacy')} />
           </label>
           <label>
             <span className="label">{tr('កំណត់សម្គាល់', 'Note')}</span>
-            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={MAX.text} />
           </label>
         </div>
 
@@ -111,20 +119,26 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
               </tr>
             </thead>
             <tbody>
-              {lines.map((l, i) => (
-                <tr key={l.key}>
+              {lines.map((l, i) => {
+                // errors are reported per sent item (lines with a medicine or quantity)
+                const itemIdx = lines.filter((x) => x.medicine || x.quantity).findIndex((x) => x.key === l.key);
+                const err = (f) => (itemIdx >= 0 ? errors[`items.${itemIdx}.${f}`] : undefined);
+                const lineError = err('medicine') || err('quantity') || err('expiryDate') || err('batchNo');
+                return (
+                <tr key={l.key} title={lineError}>
                   <td className="text-slate-400">{i + 1}</td>
                   <td>
                     <MedicineSelect medicines={options} value={l.medicine} onChange={(v) => update(l.key, { medicine: v })} autoFocus={i > 0 && !l.medicine} />
                   </td>
                   <td>
-                    <input type="number" min="1" step="1" className="input" value={l.quantity} onChange={(e) => update(l.key, { quantity: e.target.value })} required={!!l.medicine} />
+                    <input type="number" min="1" step="1" className={`input ${err('quantity') ? 'border-rose-400' : ''}`} value={l.quantity} onChange={(e) => update(l.key, { quantity: e.target.value })} required={!!l.medicine} />
                   </td>
                   <td>
-                    <input type="date" className="input" min={receivedDate} value={l.expiryDate} onChange={(e) => update(l.key, { expiryDate: e.target.value })} required={!!l.medicine} />
+                    <input type="date" className={`input ${err('expiryDate') ? 'border-rose-400' : ''}`} min={receivedDate} value={l.expiryDate} onChange={(e) => update(l.key, { expiryDate: e.target.value })} required={!!l.medicine} />
                   </td>
                   <td>
-                    <input className="input" value={l.batchNo} onChange={(e) => update(l.key, { batchNo: e.target.value })} />
+                    <input className="input" value={l.batchNo} onChange={(e) => update(l.key, { batchNo: e.target.value })} maxLength={MAX.code} />
+                    {lineError && <span className="mt-0.5 block text-xs text-rose-600">{lineError}</span>}
                   </td>
                   <td>
                     <button type="button" className="btn-icon hover:text-rose-600" disabled={lines.length === 1} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} aria-label="Remove">
@@ -132,7 +146,8 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           <div className="p-2">

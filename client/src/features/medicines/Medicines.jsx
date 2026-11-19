@@ -6,6 +6,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import Select, { AutoComplete } from '@/components/ui/Select';
 import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
+import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
+import { MAX, medicineSchema, medicineUpdateSchema } from '@shared/schemas/index.js';
 
 const CATS = ['INJECTION', 'PILL', 'NARCOTIC'];
 const FORMS = ['Amp', 'FL', 'គ្រាប់', 'Gel', 'Solution', 'Aerosol', 'Cream', 'Syrup'];
@@ -130,16 +132,21 @@ function MedicineForm({ medicine, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState({});
   const isNew = !medicine?._id;
+  const { errors, setErrors } = useFieldErrors();
 
   useEffect(() => {
+    setErrors({});
     if (medicine) setForm({ name: '', form: medicine.category === 'PILL' ? 'គ្រាប់' : 'Amp', strength: '', minStock: 10, order: '', note: '', isActive: true, ...medicine });
-  }, [medicine]);
+  }, [medicine, setErrors]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
     const body = { ...form, minStock: Number(form.minStock) || 0, order: form.order === '' ? undefined : Number(form.order) };
+    const check = checkForm(isNew ? medicineSchema : medicineUpdateSchema, body);
+    setErrors(check.errors);
+    if (!check.ok) return toast.error(check.message);
     try {
       if (isNew) await api.post('/medicines', body);
       else await api.put(`/medicines/${medicine._id}`, body);
@@ -147,6 +154,7 @@ function MedicineForm({ medicine, onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (err) {
+      setErrors(serverFieldErrors(err));
       toast.error(errMsg(err));
     }
   };
@@ -168,10 +176,10 @@ function MedicineForm({ medicine, onClose, onSaved }) {
       }
     >
       <form id="med-form" onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-6">
-        <Field label={tr('ឈ្មោះឱសថ', 'Name')} required className="sm:col-span-4">
-          <input className="input" value={form.name || ''} onChange={set('name')} required autoFocus />
+        <Field label={tr('ឈ្មោះឱសថ', 'Name')} required error={errors.name} className="sm:col-span-4">
+          <input className="input" value={form.name || ''} onChange={set('name')} required maxLength={MAX.name} autoFocus />
         </Field>
-        <Field label={tr('ប្រភេទឱសថ', 'Category')} required className="sm:col-span-2">
+        <Field label={tr('ប្រភេទឱសថ', 'Category')} required error={errors.category} className="sm:col-span-2">
           <Select
             value={form.category || ''}
             onChange={(v) => setForm((f) => ({ ...f, category: v }))}
@@ -179,20 +187,20 @@ function MedicineForm({ medicine, onClose, onSaved }) {
             options={CATS.map((c) => ({ value: c, label: tr(...CATEGORY_LABELS[c]), dot: CATEGORY_COLORS[c] }))}
           />
         </Field>
-        <Field label={tr('ទម្រង់', 'Form')} className="sm:col-span-2">
+        <Field label={tr('ទម្រង់', 'Form')} error={errors.form} className="sm:col-span-2">
           <AutoComplete value={form.form || ''} onChange={(v) => setForm((f) => ({ ...f, form: v }))} suggestions={FORMS} />
         </Field>
-        <Field label={tr('កម្រិត', 'Strength')} className="sm:col-span-2">
-          <input className="input" value={form.strength || ''} onChange={set('strength')} placeholder="500mg" />
+        <Field label={tr('កម្រិត', 'Strength')} error={errors.strength} className="sm:col-span-2">
+          <input className="input" value={form.strength || ''} onChange={set('strength')} maxLength={MAX.short} placeholder="500mg" />
         </Field>
-        <Field label={tr('ស្តុកអប្បបរមា', 'Min stock')} className="sm:col-span-1">
-          <input type="number" min="0" className="input" value={form.minStock ?? ''} onChange={set('minStock')} />
+        <Field label={tr('ស្តុកអប្បបរមា', 'Min stock')} error={errors.minStock} className="sm:col-span-1">
+          <input type="number" min="0" step="1" className="input" value={form.minStock ?? ''} onChange={set('minStock')} />
         </Field>
-        <Field label={tr('ល.រ', 'Order')} className="sm:col-span-1">
-          <input type="number" min="0" className="input" value={form.order ?? ''} onChange={set('order')} placeholder="auto" />
+        <Field label={tr('ល.រ', 'Order')} error={errors.order} className="sm:col-span-1">
+          <input type="number" min="0" step="1" className="input" value={form.order ?? ''} onChange={set('order')} placeholder="auto" />
         </Field>
-        <Field label={tr('កំណត់សម្គាល់', 'Note')} className="sm:col-span-6">
-          <input className="input" value={form.note || ''} onChange={set('note')} />
+        <Field label={tr('កំណត់សម្គាល់', 'Note')} error={errors.note} className="sm:col-span-6">
+          <input className="input" value={form.note || ''} onChange={set('note')} maxLength={MAX.text} />
         </Field>
         {!isNew && (
           <label className="flex items-center gap-2 text-sm sm:col-span-6">

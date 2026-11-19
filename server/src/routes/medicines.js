@@ -5,6 +5,9 @@ import StockBatch from '../models/StockBatch.js';
 import StockOut from '../models/StockOut.js';
 import { stockInfoMap, stockStatus } from '../services/stock.js';
 import { asyncHandler, escapeRegex, HttpError } from '../utils/http.js';
+import { idParams, medicineListQuery, medicineSchema, medicineUpdateSchema } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
@@ -23,6 +26,7 @@ const pick = (body) => Object.fromEntries(FIELDS.filter((f) => body[f] !== undef
 // Readable by anyone who can see stock, usage or reports (they all need the list).
 router.get(
   '/',
+  validate({ query: medicineListQuery }),
   asyncHandler(async (req, res) => {
     const filter = { category: { $in: parseCategories(req.query.category || req.query.categories) } };
     if (req.query.active !== 'all') filter.isActive = req.query.active === 'false' ? false : true;
@@ -40,6 +44,7 @@ router.get(
 router.post(
   '/',
   authorize('medicines', 'create'),
+  validate({ body: medicineSchema }),
   asyncHandler(async (req, res) => {
     const data = pick(req.body || {});
     if (data.order === undefined) {
@@ -54,6 +59,7 @@ router.post(
 router.put(
   '/:id',
   authorize('medicines', 'update'),
+  validate({ params: idParams, body: medicineUpdateSchema }),
   asyncHandler(async (req, res) => {
     const med = await Medicine.findById(req.params.id);
     if (!med) throw new HttpError(404, 'Medicine not found');
@@ -68,6 +74,7 @@ router.put(
 router.delete(
   '/:id',
   authorize('medicines', 'delete'),
+  validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const med = await Medicine.findById(req.params.id);
     if (!med) throw new HttpError(404, 'Medicine not found');

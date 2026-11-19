@@ -3,12 +3,16 @@ import { authorize } from '../middleware/auth.js';
 import LoginHistory from '../models/LoginHistory.js';
 import { dayEnd, parseDay } from '../utils/date.js';
 import { asyncHandler, escapeRegex, parsePaging } from '../utils/http.js';
+import { loginHistoryQuery } from '../../../shared/schemas/index.js';
+import { validate } from '../middleware/validate.js';
+
 
 const router = Router();
 
 router.get(
   '/',
   authorize('loginHistory', 'read'),
+  validate({ query: loginHistoryQuery }),
   asyncHandler(async (req, res) => {
     const { page, limit, skip } = parsePaging(req.query, 30);
     const filter = {};

@@ -147,6 +147,16 @@ client/                React + Vite app (feature-based)
 Imports inside the client use the `@/` alias for `client/src` (e.g. `import { Modal } from '@/components/ui'`).
 Files in the same feature folder import each other with `./`.
 
+### Validation
+
+All input rules live in `shared/schemas/` (Zod) and are used on both sides:
+
+- **API:** every route validates its body, query string and `:id` with `validate({ body, query, params })`. Unknown fields are dropped, text is trimmed, Unicode-normalised and stripped of HTML tags, and each field has a maximum length (`MAX` in `shared/schemas/common.js`).
+- **Forms:** the same schema is checked before sending (`checkForm` in `client/src/lib/validation.js`), and errors appear under the field (`<Field error>`); errors returned by the API are shown the same way.
+- **Environment:** `server/src/config/env.js` checks the variables at startup and lists what is wrong (names only, never values).
+
+Every error response has the same shape: `{ "message": "...", "code": "VALIDATION_ERROR", "fields": { "name": "..." } }` (`fields` only for validation errors). A database outage returns `503 DATABASE_UNAVAILABLE` instead of a generic 500.
+
 ### Quality checks
 
 ```bash
