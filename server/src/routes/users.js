@@ -13,6 +13,21 @@ async function ensureRole(roleId) {
   return role;
 }
 
+const isAdmin = (user) => !!user?.role?.isSystem;
+
+// Only administrators may create, change or remove administrator accounts.
+function assertCanManage(actor, { targetRole, newRole } = {}) {
+  if (isAdmin(actor)) return;
+  if (targetRole?.isSystem) throw new HttpError(403, 'Only an administrator can change an administrator account');
+  if (newRole?.isSystem) throw new HttpError(403, 'Only an administrator can give the administrator role');
+}
+
+// Keeps at least one active administrator in the system.
+async function assertNotLastAdmin(user, roleId) {
+  const others = await User.countDocuments({ _id: { $ne: user._id }, role: roleId, isActive: true });
+  if (!others) throw new HttpError(400, 'This is the last active administrator');
+}
+
 router.get(
   '/',
   authorize('users', 'read'),
@@ -31,8 +46,9 @@ router.get(
 router.get(
   '/role-options',
   authorize('users', 'read'),
-  asyncHandler(async (_req, res) => {
-    const roles = await Role.find({}, 'name isSystem').sort({ isSystem: -1, name: 1 }).lean();
+  asyncHandler(async (req, res) => {
+    const filter = isAdmin(req.user) ? {} : { isSystem: { $ne: true } };
+    const roles = await Role.find(filter, 'name isSystem').sort({ isSystem: -1, name: 1 }).lean();
     res.json({ items: roles });
   }),
 );
@@ -42,7 +58,7 @@ router.post(
   authorize('users', 'create'),
   asyncHandler(async (req, res) => {
     const { username, fullName, password, role, isActive = true } = req.body || {};
-    await ensureRole(role);
+    assertCanManage(req.user, { newRole: await ensureRole(role) });
     await assertPasswordPolicy(password);
     const user = new User({ username, fullName, role, isActive });
     await user.setPassword(password);
@@ -56,20 +72,24 @@ router.put(
   '/:id',
   authorize('users', 'update'),
   asyncHandler(async (req, res) => {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).populate('role');
     if (!user) throw new HttpError(404, 'User not found');
     const { fullName, role, isActive, password, username, unlock } = req.body || {};
     const isSelf = user.id === req.user.id;
+    const currentRole = user.role;
+    assertCanManage(req.user, { targetRole: currentRole });
 
     if (username !== undefined) user.username = username;
     if (fullName !== undefined) user.fullName = fullName;
-    if (role !== undefined && String(role) !== String(user.role)) {
+    if (role !== undefined && String(role) !== String(currentRole?._id)) {
       if (isSelf) throw new HttpError(400, 'You cannot change your own role');
-      await ensureRole(role);
+      assertCanManage(req.user, { newRole: await ensureRole(role) });
+      if (currentRole?.isSystem && user.isActive) await assertNotLastAdmin(user, currentRole._id);
       user.role = role;
     }
     if (isActive !== undefined) {
       if (isSelf && !isActive) throw new HttpError(400, 'You cannot disable your own account');
+      if (!isActive && user.isActive && currentRole?.isSystem) await assertNotLastAdmin(user, currentRole._id);
       user.isActive = !!isActive;
     }
     if (password) {
@@ -94,10 +114,8 @@ router.delete(
     if (req.params.id === req.user.id) throw new HttpError(400, 'You cannot delete your own account');
     const user = await User.findById(req.params.id).populate('role');
     if (!user) throw new HttpError(404, 'User not found');
-    if (user.role?.isSystem) {
-      const admins = await User.countDocuments({ role: user.role._id, isActive: true });
-      if (admins <= 1) throw new HttpError(400, 'Cannot delete the last administrator');
-    }
+    assertCanManage(req.user, { targetRole: user.role });
+    if (user.role?.isSystem) await assertNotLastAdmin(user, user.role._id);
     await user.deleteOne();
     res.json({ ok: true });
   }),

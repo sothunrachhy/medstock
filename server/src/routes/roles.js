@@ -7,6 +7,18 @@ import { asyncHandler, HttpError } from '../utils/http.js';
 
 const router = Router();
 
+// Permissions that control who can do what. Only administrators may hand them out,
+// otherwise a role manager could grant themselves full access.
+const PRIVILEGED_MODULES = ['users', 'roles', 'authSettings'];
+
+function assertCanGrant(actor, permissions) {
+  if (actor.role?.isSystem) return;
+  const privileged = permissions.filter((p) => PRIVILEGED_MODULES.includes(p.module)).map((p) => p.module);
+  if (privileged.length) {
+    throw new HttpError(403, `Only an administrator can grant these permissions: ${[...new Set(privileged)].join(', ')}`);
+  }
+}
+
 function cleanPermissions(input = []) {
   if (!Array.isArray(input)) throw new HttpError(400, 'permissions must be an array');
   return input
@@ -35,7 +47,9 @@ router.post(
   authorize('roles', 'create'),
   asyncHandler(async (req, res) => {
     const { name, description, permissions } = req.body || {};
-    const role = await Role.create({ name, description, permissions: cleanPermissions(permissions) });
+    const clean = cleanPermissions(permissions);
+    assertCanGrant(req.user, clean);
+    const role = await Role.create({ name, description, permissions: clean });
     res.status(201).json(role);
   }),
 );
@@ -47,10 +61,22 @@ router.put(
     const role = await Role.findById(req.params.id);
     if (!role) throw new HttpError(404, 'Role not found');
     if (role.isSystem) throw new HttpError(400, 'The system administrator role cannot be changed');
+    if (!req.user.role?.isSystem && String(req.user.role?._id) === String(role._id)) {
+      throw new HttpError(403, 'You cannot change your own role');
+    }
     const { name, description, permissions } = req.body || {};
     if (name !== undefined) role.name = name;
     if (description !== undefined) role.description = description;
-    if (permissions !== undefined) role.permissions = cleanPermissions(permissions);
+    if (permissions !== undefined) {
+      const clean = cleanPermissions(permissions);
+      // a non-admin may keep privileged permissions a role already has, but not add new ones
+      const had = new Set(role.permissions.flatMap((p) => p.actions.map((a) => `${p.module}:${a}`)));
+      const added = clean
+        .map((p) => ({ module: p.module, actions: p.actions.filter((a) => !had.has(`${p.module}:${a}`)) }))
+        .filter((p) => p.actions.length);
+      assertCanGrant(req.user, added);
+      role.permissions = clean;
+    }
     await role.save();
     res.json(role);
   }),
