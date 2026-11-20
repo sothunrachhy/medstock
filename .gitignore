@@ -4,3 +4,6 @@ dist/
 *.log
 .DS_Store
 .vercel
+
+# Backend: separate Git repository
+msm_api/

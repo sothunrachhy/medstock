@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import api from '@/lib/api';
+import { medicines as medicinesApi, patients as patientsApi } from '@/lib/backend';
 import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '@/app/LangContext';
 import { periodRange, shiftPeriod, todayStr } from '@/lib/dates';
 import Combobox from '@/components/ui/Combobox';
@@ -13,9 +13,9 @@ export function useMedicines({ categories, withStock = false } = {}) {
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     setLoading(true);
-    return api
-      .get('/medicines', { params: { categories, withStock: withStock ? 1 : undefined } })
-      .then((r) => setItems(r.data.items))
+    return medicinesApi
+      .list({ categories, withStock })
+      .then(setItems)
       .finally(() => setLoading(false));
   }, [categories, withStock]);
   useEffect(() => {
@@ -39,8 +39,8 @@ export function PatientSelect({ value, onChange, selectedLabel, status }) {
   const { tr } = useLang();
   const search = useCallback(
     (q) =>
-      api.get('/patients', { params: { search: q, status, limit: 30 } }).then((r) =>
-        r.data.items.map((p) => ({
+      patientsApi.list({ search: q, status, limit: 30 }).then((r) =>
+        r.items.map((p) => ({
           value: p._id,
           label: p.name,
           hint: [p.code, p.sex === 'M' ? tr('ប្រុស', 'M') : tr('ស្រី', 'F'), p.age && `${p.age}${tr('ឆ្នាំ', 'y')}`, p.diagnosis].filter(Boolean).join(' · '),

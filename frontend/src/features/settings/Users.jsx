@@ -1,6 +1,7 @@
-import { LockOpen, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { users as usersApi } from '@/lib/backend';
 import Select from '@/components/ui/Select';
 import { Badge, Empty, Field, Loading, Modal } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -23,9 +24,9 @@ export default function Users() {
   const load = async () => {
     setLoading(true);
     try {
-      const [u, r] = await Promise.all([api.get('/users'), api.get('/users/role-options')]);
-      setUsers(u.data.items);
-      setRoles(r.data.items);
+      const [u, r] = await Promise.all([usersApi.list(), usersApi.roleOptions()]);
+      setUsers(u.items);
+      setRoles(r.items);
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
@@ -36,20 +37,10 @@ export default function Users() {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const unlock = async (u) => {
-    try {
-      await api.put(`/users/${u.id}`, { unlock: true });
-      toast(tr('បានដោះសោគណនី', 'Account unlocked'));
-      load();
-    } catch (e) {
-      toast.error(errMsg(e));
-    }
-  };
-
   const remove = async (u) => {
     if (!window.confirm(tr(`លុបអ្នកប្រើ "${u.username}"?`, `Delete user "${u.username}"?`))) return;
     try {
-      await api.delete(`/users/${u.id}`);
+      await usersApi.remove(u.id);
       toast(tr('បានលុប', 'Deleted'));
       load();
     } catch (e) {
@@ -95,20 +86,10 @@ export default function Users() {
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {u.isActive ? <Badge color="green">{tr('សកម្ម', 'Active')}</Badge> : <Badge color="red">{tr('បានបិទ', 'Disabled')}</Badge>}
-                      {u.lockedUntil && (
-                        <span title={`${tr('ដល់', 'Until')} ${fmtDateTime(u.lockedUntil)}`}>
-                          <Badge color="amber">{tr('ជាប់សោ', 'Locked')}</Badge>
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td className="text-sm text-slate-500">{fmtDateTime(u.lastLoginAt) || '—'}</td>
                   <td className="text-right whitespace-nowrap">
-                    {can('users', 'update') && u.lockedUntil && (
-                      <button className="btn-icon hover:text-amber-600" onClick={() => unlock(u)} title={tr('ដោះសោ', 'Unlock')}>
-                        <LockOpen className="h-4 w-4" />
-                      </button>
-                    )}
                     {can('users', 'update') && (
                       <button className="btn-icon" onClick={() => setEditing(u)} title={tr('កែប្រែ', 'Edit')}>
                         <Pencil className="h-4 w-4" />
@@ -153,8 +134,8 @@ function UserForm({ user, roles, onClose, onSaved, isSelf }) {
     setErrors(check.errors);
     if (!check.ok) return toast.error(check.message);
     try {
-      if (isNew) await api.post('/users', body);
-      else await api.put(`/users/${user.id}`, body);
+      if (isNew) await usersApi.create(body);
+      else await usersApi.update(user.id, body);
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved();
       onClose();
@@ -185,8 +166,23 @@ function UserForm({ user, roles, onClose, onSaved, isSelf }) {
         <Field label={tr('ឈ្មោះពេញ', 'Full name')} required error={errors.fullName}>
           <input className="input" value={form.fullName || ''} onChange={set('fullName')} required maxLength={MAX.name} autoFocus />
         </Field>
-        <Field label={tr('ឈ្មោះអ្នកប្រើ (សម្រាប់ចូល)', 'Username (for login)')} required error={errors.username}>
-          <input className="input" value={form.username || ''} onChange={set('username')} required minLength={3} maxLength={50} pattern="[A-Za-z0-9._\-]+" autoComplete="off" />
+        <Field
+          label={tr('ឈ្មោះអ្នកប្រើ (សម្រាប់ចូល)', 'Username (for login)')}
+          required
+          error={errors.username}
+          hint={!isNew ? tr('ឈ្មោះអ្នកប្រើមិនអាចប្តូរបានទេ', 'The username cannot be changed') : undefined}
+        >
+          <input
+            className="input"
+            value={form.username || ''}
+            onChange={set('username')}
+            required
+            readOnly={!isNew}
+            minLength={3}
+            maxLength={50}
+            pattern="[A-Za-z0-9._\-]+"
+            autoComplete="off"
+          />
         </Field>
         <Field label={tr('តួនាទី', 'Role')} required error={errors.role}>
           <Select
@@ -204,7 +200,7 @@ function UserForm({ user, roles, onClose, onSaved, isSelf }) {
           hint={
             isNew
               ? tr(`យ៉ាងតិច ${minPasswordLength} តួ`, `At least ${minPasswordLength} characters`)
-              : tr('ទុកទទេ បើមិនប្តូរ (ការកំណត់ពាក្យសម្ងាត់ថ្មី នឹងដោះសោគណនីផងដែរ)', 'Leave empty to keep the current one (setting a new password also unlocks the account)')
+              : tr('ទុកទទេ បើមិនប្តូរ (ការកំណត់ពាក្យសម្ងាត់ថ្មី នឹងចាកចេញពីឧបករណ៍ផ្សេងៗ)', 'Leave empty to keep the current one (a new password signs the user out everywhere)')
           }
         >
           <input type="password" className="input" value={form.password || ''} onChange={set('password')} required={isNew} minLength={minPasswordLength} maxLength={MAX.password} autoComplete="new-password" />

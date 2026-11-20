@@ -2,7 +2,8 @@ import { Eye, Filter, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { patients } from '@/lib/backend';
 import { Badge, Empty, Loading, PageHeader, Pagination } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useLang } from '@/app/LangContext';
@@ -32,9 +33,9 @@ export default function Patients() {
 
   const load = useCallback(() => {
     setLoading(true);
-    api
-      .get('/patients', { params: { search: query || undefined, status: status || undefined, page, limit: 10 } })
-      .then((r) => setData(r.data))
+    patients
+      .list({ search: query || undefined, status: status || undefined, page, limit: 10 })
+      .then(setData)
       .catch((e) => toast.error(errMsg(e)))
       .finally(() => setLoading(false));
   }, [query, status, page, toast]);
@@ -44,7 +45,7 @@ export default function Patients() {
   const remove = async (p) => {
     if (!window.confirm(tr(`លុបអ្នកជំងឺ "${p.name}"?`, `Delete patient "${p.name}"?`))) return;
     try {
-      await api.delete(`/patients/${p._id}`);
+      await patients.remove(p._id);
       toast(tr('បានលុប', 'Deleted'));
       load();
     } catch (e) {

@@ -1,16 +1,16 @@
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { medicineForms, medicines as medicinesApi } from '@/lib/backend';
 import { Badge, Empty, Field, Loading, Modal, PageHeader, Pagination, Tabs, usePaged } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
-import Select, { AutoComplete } from '@/components/ui/Select';
+import Select from '@/components/ui/Select';
 import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
 import { MAX, medicineSchema, medicineUpdateSchema } from '@shared/schemas/index.js';
 
 const CATS = ['INJECTION', 'PILL', 'NARCOTIC'];
-const FORMS = ['Amp', 'FL', 'គ្រាប់', 'Gel', 'Solution', 'Aerosol', 'Cream', 'Syrup'];
 
 export default function Medicines() {
   const { tr } = useLang();
@@ -25,9 +25,9 @@ export default function Medicines() {
 
   const load = () => {
     setLoading(true);
-    api
-      .get('/medicines', { params: { active: 'all' } })
-      .then((r) => setItems(r.data.items))
+    medicinesApi
+      .list({ active: 'all' })
+      .then(setItems)
       .catch((e) => toast.error(errMsg(e)))
       .finally(() => setLoading(false));
   };
@@ -42,7 +42,7 @@ export default function Medicines() {
   const remove = async (m) => {
     if (!window.confirm(tr(`លុប "${m.name}"? បើធ្លាប់មានស្តុក វានឹងត្រូវបិទ (មិនលុប)។`, `Delete "${m.name}"? If it has stock history it will be deactivated instead.`))) return;
     try {
-      const { data } = await api.delete(`/medicines/${m._id}`);
+      const data = await medicinesApi.remove(m._id);
       toast(data.deactivated ? tr('បានបិទ', 'Deactivated') : tr('បានលុប', 'Deleted'));
       load();
     } catch (e) {
@@ -136,7 +136,7 @@ function MedicineForm({ medicine, onClose, onSaved }) {
 
   useEffect(() => {
     setErrors({});
-    if (medicine) setForm({ name: '', form: medicine.category === 'PILL' ? 'គ្រាប់' : 'Amp', strength: '', minStock: 10, order: '', note: '', isActive: true, ...medicine });
+    if (medicine) setForm({ name: '', formCode: medicine.category === 'PILL' ? 'TABLET' : 'AMP', strength: '', minStock: 10, order: '', note: '', isActive: true, ...medicine });
   }, [medicine, setErrors]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
@@ -148,8 +148,8 @@ function MedicineForm({ medicine, onClose, onSaved }) {
     setErrors(check.errors);
     if (!check.ok) return toast.error(check.message);
     try {
-      if (isNew) await api.post('/medicines', body);
-      else await api.put(`/medicines/${medicine._id}`, body);
+      if (isNew) await medicinesApi.create(body);
+      else await medicinesApi.update(medicine, body);
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved();
       onClose();
@@ -187,8 +187,13 @@ function MedicineForm({ medicine, onClose, onSaved }) {
             options={CATS.map((c) => ({ value: c, label: tr(...CATEGORY_LABELS[c]), dot: CATEGORY_COLORS[c] }))}
           />
         </Field>
-        <Field label={tr('ទម្រង់', 'Form')} error={errors.form} className="sm:col-span-2">
-          <AutoComplete value={form.form || ''} onChange={(v) => setForm((f) => ({ ...f, form: v }))} suggestions={FORMS} />
+        <Field label={tr('ទម្រង់', 'Form')} required error={errors.formCode} className="sm:col-span-2">
+          <Select
+            value={form.formCode || ''}
+            onChange={(v) => setForm((f) => ({ ...f, formCode: v }))}
+            placeholder={tr('ជ្រើសរើសទម្រង់', 'Choose a form')}
+            options={medicineForms().map((f) => ({ value: f.code, label: f.name, hint: f.name_kh && f.name_kh !== f.name ? f.name_kh : undefined }))}
+          />
         </Field>
         <Field label={tr('កម្រិត', 'Strength')} error={errors.strength} className="sm:col-span-2">
           <input className="input" value={form.strength || ''} onChange={set('strength')} maxLength={MAX.short} placeholder="500mg" />

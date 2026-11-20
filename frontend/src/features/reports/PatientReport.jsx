@@ -6,6 +6,7 @@ import { useLang } from '@/app/LangContext';
 import { periodRange, todayStr } from '@/lib/dates';
 import { khDate } from '@/lib/khmer';
 import { CategorySelect } from './Reports';
+import { reports } from '@/lib/backend';
 import useReport from './useReport';
 
 const PERIOD_KM = { daily: 'ប្រចាំថ្ងៃ', weekly: 'ប្រចាំសប្តាហ៍', monthly: 'ប្រចាំខែ' };
@@ -18,7 +19,7 @@ export default function PatientReport() {
   const [patient, setPatient] = useState({ id: '', name: '' });
   const tableRef = useRef(null);
   const { from, to } = periodRange(pp.period, pp.date);
-  const { data, loading } = useReport('/reports/patient-usage', { from, to, categories, patient: patient.id || undefined });
+  const { data, loading } = useReport(reports.patientUsage, { from, to, categories, patient: patient.id || undefined });
 
   return (
     <div className="space-y-4">

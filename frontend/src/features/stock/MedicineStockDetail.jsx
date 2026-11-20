@@ -1,6 +1,7 @@
 import { Ban, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { stock } from '@/lib/backend';
 import { medLabel } from '@/components/pickers';
 import Select from '@/components/ui/Select';
 import { Badge, Empty, Field, Loading, Modal, Tabs } from '@/components/ui';
@@ -37,11 +38,11 @@ export default function MedicineStockDetail({ medicine, onClose, onChanged, onAd
     setLoading(true);
     try {
       const [b, m] = await Promise.all([
-        api.get('/stock/batches', { params: { medicine: medicine._id, limit: 500 } }),
-        api.get('/stock/movements', { params: { medicine: medicine._id, limit: 200 } }),
+        stock.batches({ medicine: medicine._id, limit: 500 }),
+        stock.movements({ medicine: medicine._id, limit: 200 }),
       ]);
-      setBatches(b.data.items);
-      setMoves(m.data.items);
+      setBatches(b.items);
+      setMoves(m);
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
@@ -61,7 +62,7 @@ export default function MedicineStockDetail({ medicine, onClose, onChanged, onAd
   const removeBatch = async (b) => {
     if (!window.confirm(tr('លុបឡូត៍នេះ?', 'Delete this batch?'))) return;
     try {
-      await api.delete(`/stock/batches/${b._id}`);
+      await stock.removeBatch(b._id);
       toast(tr('បានលុប', 'Deleted'));
       changed();
     } catch (e) {
@@ -215,7 +216,7 @@ function BatchEdit({ batch, onClose, onSaved }) {
     setErrors(check.errors);
     if (!check.ok) return toast.error(check.message);
     try {
-      await api.put(`/stock/batches/${batch._id}`, body);
+      await stock.updateBatch(batch._id, body);
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved();
       onClose();
@@ -279,7 +280,7 @@ function WriteOff({ batch, onClose, onSaved }) {
     setErrors(check.errors);
     if (!check.ok) return toast.error(check.message);
     try {
-      await api.post('/stock/writeoff', body);
+      await stock.writeOff(body);
       toast(tr('បានកាត់ចេញពីស្តុក', 'Written off'));
       onSaved();
       onClose();

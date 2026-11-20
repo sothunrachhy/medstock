@@ -1,5 +1,7 @@
-// Client-side form validation with the same Zod schemas the API uses (shared/schemas).
+// Client-side form validation (Zod schemas in shared/schemas). The backend checks the same rules again.
 import { useCallback, useState } from 'react';
+import { apiFieldErrors } from '@/lib/api';
+import { FIELD_NAMES } from '@/lib/backend';
 
 /** Validates `data`. Returns { ok: true, data } or { ok: false, errors: { field: message }, message }. */
 export function checkForm(schema, data) {
@@ -13,8 +15,17 @@ export function checkForm(schema, data) {
   return { ok: false, errors, message: Object.values(errors)[0] };
 }
 
-/** Field errors returned by the API (400 VALIDATION_ERROR). */
-export const serverFieldErrors = (err) => err?.response?.data?.fields || {};
+/** Field errors returned by the API (422), renamed to the form's field names ("items.0.quantity"). */
+export const serverFieldErrors = (err) =>
+  Object.fromEntries(
+    Object.entries(apiFieldErrors(err)).map(([key, message]) => [
+      key
+        .split('.')
+        .map((part) => FIELD_NAMES[part] || part)
+        .join('.'),
+      message,
+    ]),
+  );
 
 /** Field-error state for a form. */
 export function useFieldErrors() {

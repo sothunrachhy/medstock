@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { stock } from '@/lib/backend';
 import { MedicineSelect, useMedicines } from '@/components/pickers';
 import { Modal } from '@/components/ui';
 import Select from '@/components/ui/Select';
@@ -49,7 +50,7 @@ export default function StockInForm({ open, onClose, category, medicineId, onSav
     if (!check.ok) return toast.error(check.message);
     setBusy(true);
     try {
-      await api.post('/stock/batches', { items });
+      await stock.receive(items);
       toast(tr(`បានបញ្ចូលស្តុក ${items.length} មុខ`, `${items.length} item(s) added to stock`));
       onSaved?.();
       onClose();

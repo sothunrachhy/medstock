@@ -7,6 +7,7 @@ import { ORG } from '@/config/org';
 import { todayStr } from '@/lib/dates';
 import { khDateParts, pad2 } from '@/lib/khmer';
 import { CategorySelect, REPORT_CATEGORIES } from './Reports';
+import { reports } from '@/lib/backend';
 import useReport from './useReport';
 
 /**
@@ -19,7 +20,7 @@ export default function DailyStock() {
   const [categories, setCategories] = useState('INJECTION,NARCOTIC');
   const [hideEmpty, setHideEmpty] = useState(false);
   const tableRef = useRef(null);
-  const { data, loading } = useReport('/reports/stock-summary', { from: date, to: date, categories });
+  const { data, loading } = useReport(reports.stockSummary, { from: date, to: date, categories });
   const kd = khDateParts(date);
   const isPill = categories === 'PILL';
   const rows = (data?.rows || []).filter((r) => !hideEmpty || r.opening || r.received || r.used || r.writeOff);

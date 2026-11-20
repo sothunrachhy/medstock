@@ -1,4 +1,4 @@
-// Validation schemas shared by the API and the forms.
+// Validation schemas used by the forms (the backend checks the same rules again).
 // Body schemas strip unknown fields; query schemas reject repeated / nested keys.
 import { z } from 'zod';
 import {
@@ -8,7 +8,8 @@ import {
   day,
   int,
   MAX,
-  objectId,
+  recordId,
+  roleCode,
   optionalDay,
   optionalText,
   pagingQuery,
@@ -25,13 +26,6 @@ export const WRITE_OFF_TYPES = ['EXPIRED', 'DAMAGED', 'ADJUSTMENT'];
 export const PAYMENT_TYPES = ['CASH', 'NSSF', 'HEF'];
 
 // ---- auth -----------------------------------------------------------------
-
-export const AUTH_LIMITS = {
-  sessionTimeoutHours: [1, 720],
-  minPasswordLength: [4, 64],
-  maxFailedAttempts: [0, 50],
-  lockoutMinutes: [1, 1440],
-};
 
 export const loginSchema = z.object({
   username: z
@@ -50,12 +44,6 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string({ required_error: 'Current password is required' }).min(1, 'Current password is required').max(MAX.password),
   newPassword: z.string({ required_error: 'New password is required' }).min(1, 'New password is required').max(MAX.password, 'Password is too long'),
 });
-
-export const authSettingsSchema = z.object(
-  Object.fromEntries(
-    Object.entries(AUTH_LIMITS).map(([field, [min, max]]) => [field, int(field, { min, max }).optional()]),
-  ),
-);
 
 // ---- users & roles --------------------------------------------------------
 
@@ -77,7 +65,7 @@ export const userCreateSchema = z.object({
   username,
   fullName: text('Full name', MAX.name),
   password: z.string({ required_error: 'Password is required' }).min(1, 'Password is required').max(MAX.password, 'Password is too long'),
-  role: objectId('Role'),
+  role: roleCode('Role'),
   isActive: bool.optional(),
 });
 
@@ -85,7 +73,7 @@ export const userUpdateSchema = z.object({
   username: username.optional(),
   fullName: text('Full name', MAX.name).optional(),
   password: newPassword,
-  role: objectId('Role').optional(),
+  role: roleCode('Role').optional(),
   isActive: bool.optional(),
   unlock: bool.optional(),
 });
@@ -140,7 +128,7 @@ export const patientListQuery = z.object({
 
 const medicineFields = {
   name: text('Medicine name', MAX.name),
-  form: optionalText('Form', MAX.short),
+  formCode: z.string({ required_error: 'Choose a form', invalid_type_error: 'Choose a form' }).min(1, 'Choose a form').max(50),
   strength: optionalText('Strength', MAX.short),
   category: z.enum(CATEGORIES, { errorMap: () => ({ message: 'Choose a category' }) }),
   order: z
@@ -168,7 +156,7 @@ const quantity = (label = 'Quantity') => int(label, { min: 1, max: 1_000_000 });
 
 export const stockLineSchema = z
   .object({
-    medicine: objectId('Medicine'),
+    medicine: recordId('Medicine'),
     quantity: quantity(),
     receivedDate: day('Input date').optional(),
     expiryDate: day('Expiry date'),
@@ -197,7 +185,7 @@ export const batchUpdateSchema = z.object({
 });
 
 export const writeOffSchema = z.object({
-  batch: objectId('Batch'),
+  batch: recordId('Batch'),
   quantity: quantity(),
   type: z.enum(WRITE_OFF_TYPES, { errorMap: () => ({ message: 'Invalid write-off type' }) }).default('EXPIRED'),
   date: day('Date').optional(),
@@ -206,13 +194,13 @@ export const writeOffSchema = z.object({
 
 export const batchListQuery = z.object({
   ...pagingQuery,
-  medicine: objectId('Medicine').optional(),
+  medicine: recordId('Medicine').optional(),
   status: z.enum(['all', 'available', 'expiring', 'expired']).optional(),
   days: z.coerce.number().int().min(1).max(3650).optional(),
 });
 
 export const movementsQuery = z.object({
-  medicine: objectId('Medicine'),
+  medicine: recordId('Medicine'),
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
@@ -220,14 +208,14 @@ export const movementsQuery = z.object({
 
 export const usageSchema = z
   .object({
-    patient: objectId('Patient'),
+    patient: recordId('Patient'),
     date: day('Date').optional(),
     shift: z.enum(['DAY', 'NIGHT', '']).default(''),
     payment: z.enum(PAYMENT_TYPES, { errorMap: () => ({ message: 'Select how the patient pays' }) }),
     doctor: optionalText('Doctor', MAX.label),
     note: optionalText('Note', MAX.text),
     items: z
-      .array(z.object({ medicine: objectId('Medicine'), quantity: quantity() }), { required_error: 'Add at least one medicine' })
+      .array(z.object({ medicine: recordId('Medicine'), quantity: quantity() }), { required_error: 'Add at least one medicine' })
       .min(1, 'Add at least one medicine')
       .max(100, 'Too many lines (max 100)'),
   })
@@ -236,8 +224,8 @@ export const usageSchema = z
 export const usageListQuery = z.object({
   ...pagingQuery,
   ...rangeQuery,
-  patient: objectId('Patient').optional(),
-  medicine: objectId('Medicine').optional(),
+  patient: recordId('Patient').optional(),
+  medicine: recordId('Medicine').optional(),
   categories: categoriesQuery,
   payment: z.enum(PAYMENT_TYPES).optional(),
   type: z.enum(['USAGE', ...WRITE_OFF_TYPES]).optional(),
@@ -249,8 +237,8 @@ export const reportRangeQuery = z.object({
   ...rangeQuery,
   date: day('Date').optional(),
   categories: categoriesQuery,
-  medicine: objectId('Medicine').optional(),
-  patient: objectId('Patient').optional(),
+  medicine: recordId('Medicine').optional(),
+  patient: recordId('Patient').optional(),
   allColumns: z.enum(['0', '1']).optional(),
 });
 
@@ -260,7 +248,7 @@ export const requisitionSchema = z.object({
   from: day('From'),
   to: day('To'),
   items: z
-    .array(z.object({ medicine: objectId('Medicine'), requested: requested.default(0), provided: requested.default(0) }))
+    .array(z.object({ medicine: recordId('Medicine'), requested: requested.default(0), provided: requested.default(0) }))
     .max(1000)
     .default([]),
   note: optionalText('Note', MAX.text),
@@ -272,7 +260,7 @@ export const loginHistoryQuery = z.object({
   ...pagingQuery,
   ...rangeQuery,
   status: z.enum(['SUCCESS', 'FAILED']).optional(),
-  user: objectId('User').optional(),
+  user: recordId('User').optional(),
   search: searchQuery,
 });
 

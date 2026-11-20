@@ -39,17 +39,22 @@ export const CATEGORY_LABELS = {
 // Validated categorical slots 1–3 (also used by the dashboard charts)
 export const CATEGORY_COLORS = { INJECTION: '#2a78d6', PILL: '#eb6834', NARCOTIC: '#1baf7a' };
 
+// Permission modules of the backend (role permissions are set per module)
 export const MODULE_LABELS = {
-  dashboard: ['ផ្ទាំងគ្រប់គ្រង', 'Dashboard'],
-  patients: ['អ្នកជំងឺ', 'Patients'],
-  medicines: ['បញ្ជីឱសថ', 'Medicine list'],
-  stock: ['ស្តុកឱសថ', 'Stock'],
-  usage: ['ការប្រើប្រាស់ឱសថ', 'Medicine usage'],
-  reports: ['របាយការណ៍', 'Reports'],
-  users: ['អ្នកប្រើប្រាស់', 'Users'],
-  roles: ['តួនាទី', 'Roles'],
-  loginHistory: ['ប្រវត្តិចូលប្រព័ន្ធ', 'Login history'],
-  authSettings: ['ការកំណត់សុវត្ថិភាព', 'Auth settings'],
+  DASHBOARD: ['ផ្ទាំងគ្រប់គ្រង', 'Dashboard'],
+  PATIENT: ['អ្នកជំងឺ', 'Patients'],
+  DISPENSING: ['ការប្រើប្រាស់ឱសថ', 'Medicine usage'],
+  STOCK: ['ស្តុក និងបញ្ជីឱសថ', 'Stock & medicine list'],
+  REPORT: ['របាយការណ៍', 'Reports'],
+  SETTING: ['ការកំណត់ (អ្នកប្រើប្រាស់ តួនាទី ប្រវត្តិចូល)', 'Settings (users, roles, login history)'],
+};
+
+// Built-in roles of the backend
+export const ROLE_LABELS = {
+  ADMIN: ['អ្នកគ្រប់គ្រង', 'Administrator'],
+  PHARMACIST: ['ឱសថការី', 'Pharmacist'],
+  NURSE: ['គិលានុបដ្ឋាក', 'Nurse'],
+  VIEWER: ['អ្នកមើល', 'Viewer'],
 };
 
 export const ACTION_LABELS = {

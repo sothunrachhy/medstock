@@ -1,20 +1,33 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import api, { tokenStore } from '@/lib/api';
+import { csrfToken, tokenStore } from '@/lib/api';
+import { auth, loadReference, roleAllows } from '@/lib/backend';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(!!tokenStore.get());
+  // A CSRF cookie means a refresh session may exist: try to restore it before showing the login page.
+  const [loading, setLoading] = useState(() => !!csrfToken());
+
+  const start = useCallback(async (u) => {
+    await loadReference().catch(() => {});
+    setUser(u);
+    return u;
+  }, []);
 
   useEffect(() => {
-    if (!tokenStore.get()) return;
-    api
-      .get('/auth/me')
-      .then((r) => setUser(r.data.user))
+    try {
+      localStorage.removeItem('medstock_token'); // token of the previous API, no longer used
+    } catch {
+      /* ignore */
+    }
+    if (!csrfToken()) return;
+    auth
+      .restore()
+      .then(start)
       .catch(() => tokenStore.clear())
       .finally(() => setLoading(false));
-  }, []);
+  }, [start]);
 
   useEffect(() => {
     const onExpired = () => setUser(null);
@@ -22,32 +35,18 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth:expired', onExpired);
   }, []);
 
-  const login = useCallback(async (username, password) => {
-    const { data } = await api.post('/auth/login', { username, password });
-    tokenStore.set(data.token);
-    setUser(data.user);
-    return data.user;
-  }, []);
+  const login = useCallback(async (username, password) => start(await auth.login(username, password)), [start]);
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/auth/logout');
+      await auth.logout();
     } catch {
-      /* ignore */
+      /* the session is gone either way */
     }
-    tokenStore.clear();
     setUser(null);
   }, []);
 
-  const can = useCallback(
-    (module, action = 'read') => {
-      const role = user?.role;
-      if (!role) return false;
-      if (role.isSystem) return true;
-      return !!role.permissions?.find((p) => p.module === module)?.actions.includes(action);
-    },
-    [user],
-  );
+  const can = useCallback((module, action = 'read') => roleAllows(user?.role, module, action), [user]);
 
   const value = useMemo(() => ({ user, loading, login, logout, can, setUser }), [user, loading, login, logout, can]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

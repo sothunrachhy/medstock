@@ -7,6 +7,7 @@ import { useLang } from '@/app/LangContext';
 import { periodRange, todayStr } from '@/lib/dates';
 import { khDate } from '@/lib/khmer';
 import { CategorySelect, categoryKm } from './Reports';
+import { reports } from '@/lib/backend';
 import useReport from './useReport';
 
 const PERIOD_KM = { daily: 'ប្រចាំថ្ងៃ', weekly: 'ប្រចាំសប្តាហ៍', monthly: 'ប្រចាំខែ' };
@@ -20,7 +21,7 @@ export default function MedicineReport() {
   const [open, setOpen] = useState({});
   const tableRef = useRef(null);
   const { from, to } = periodRange(pp.period, pp.date);
-  const { data, loading } = useReport('/reports/medicine-usage', { from, to, categories });
+  const { data, loading } = useReport(reports.medicineUsage, { from, to, categories });
   const isOpen = (id) => expandAll || open[id];
 
   return (

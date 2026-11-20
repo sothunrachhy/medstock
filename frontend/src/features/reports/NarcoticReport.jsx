@@ -7,6 +7,7 @@ import { ORG } from '@/config/org';
 import { useLang } from '@/app/LangContext';
 import { fmtDate, periodRange, todayStr } from '@/lib/dates';
 import { khDateParts, pad2 } from '@/lib/khmer';
+import { reports } from '@/lib/backend';
 import useReport from './useReport';
 
 const MIN_ROWS = 15;
@@ -21,7 +22,7 @@ export default function NarcoticReport() {
   const [medicine, setMedicine] = useState('');
   const { items: narcotics } = useMedicines({ categories: 'NARCOTIC' });
   const { from, to } = periodRange(pp.period, pp.date);
-  const { data, loading } = useReport('/reports/narcotic', { from, to, medicine: medicine || undefined });
+  const { data, loading } = useReport(reports.narcotic, { from, to, medicine: medicine || undefined });
 
   const sheets = useMemo(() => {
     if (!data) return [];

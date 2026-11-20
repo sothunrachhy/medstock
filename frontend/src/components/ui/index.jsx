@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLang } from '@/app/LangContext';
 
 export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
@@ -10,19 +10,40 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  // The page behind the panel shouldn't scroll while it is open
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  const titleId = useId();
   if (!open) return null;
-  const width = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-6xl' }[size];
+  const width = { sm: 'sm:max-w-md', md: 'sm:max-w-2xl', lg: 'sm:max-w-4xl', xl: 'sm:max-w-6xl' }[size];
+  // Opens as a panel on the right side of the screen (full width on phones). Clicking the dimmed
+  // page does not close it, so a half-filled form isn't lost by accident.
   return (
-    <div className="no-print fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:p-8">
-      <div className={`card w-full ${width} my-auto`} role="dialog" aria-modal="true">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
-          <h2 className="text-base font-semibold">{title}</h2>
+    <div className="no-print fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-slate-900/40 motion-safe:animate-fade-in" aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`relative flex h-full w-full ${width} flex-col bg-white shadow-2xl motion-safe:animate-drawer-in`}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5 py-3.5">
+          <h2 id={titleId} className="text-base font-semibold">
+            {title}
+          </h2>
           <button type="button" className="btn-icon" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-slate-50/60 px-5 py-3">{footer}</div>}
       </div>
     </div>
   );

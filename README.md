@@ -5,4 +5,4 @@ Medicine stock, usage and reporting system for ផ្នែកប្រពោធ
 | Folder | What it is |
 |---|---|
 | [`frontend/`](frontend/) | The web app (React + Vite). Setup, deploy and structure: [frontend/README.md](frontend/README.md) |
-| `api/` | The backend API, to be added. It must follow [frontend/API.md](frontend/API.md) |
+| `msm_api/` | The backend (FastAPI + PostgreSQL), its own Git repository (Darachhat/msm_api). Not tracked here. |

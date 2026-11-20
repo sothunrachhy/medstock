@@ -13,7 +13,9 @@ export const MAX = {
 };
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+// Records are identified by UUIDs, roles by their code (e.g. PHARMACIST)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ROLE_CODE_RE = /^[A-Z0-9_]{2,50}$/;
 const HTML_TAG_RE = /<\/?[a-z][^>]*>/gi;
 
 /** Today's date in Cambodia (UTC+7) as YYYY-MM-DD. */
@@ -41,10 +43,15 @@ export const optionalText = (label, max) =>
     .pipe(z.string().max(max, `${label} is too long (max ${max} characters)`))
     .optional();
 
-export const objectId = (label = 'ID') =>
+export const recordId = (label = 'ID') =>
   z
     .string({ required_error: `${label} is required`, invalid_type_error: `${label} is invalid` })
-    .regex(OBJECT_ID_RE, `${label} is invalid`);
+    .regex(UUID_RE, `${label} is invalid`);
+
+export const roleCode = (label = 'Role') =>
+  z
+    .string({ required_error: `${label} is required`, invalid_type_error: `${label} is invalid` })
+    .regex(ROLE_CODE_RE, `${label} is invalid`);
 
 const isRealDay = (s) => {
   const d = new Date(`${s}T00:00:00Z`);
@@ -90,4 +97,4 @@ export const rangeQuery = {
 
 export const categoriesQuery = z.string().max(100).optional();
 
-export const idParams = z.object({ id: objectId() });
+export const idParams = z.object({ id: recordId() });

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import api, { errMsg, tokenStore } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { auth } from '@/lib/backend';
 import { Badge, Field } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
-import { ACTION_LABELS, MODULE_LABELS, useLang } from '@/app/LangContext';
+import { ACTION_LABELS, MODULE_LABELS, ROLE_LABELS, useLang } from '@/app/LangContext';
 import { useToast } from '@/app/ToastContext';
 import usePasswordPolicy from '@/features/auth/usePasswordPolicy';
 import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
@@ -29,9 +30,8 @@ export default function Account() {
     }
     setBusy(true);
     try {
-      const { data } = await api.post('/auth/change-password', form);
-      // other devices are signed out; keep this one signed in with the new token
-      if (data?.token) tokenStore.set(data.token);
+      // other devices are signed out; this one stays signed in with a fresh token
+      await auth.changePassword(form);
       toast(tr('បានប្តូរពាក្យសម្ងាត់', 'Password changed'));
       setForm({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
@@ -57,7 +57,7 @@ export default function Account() {
           </div>
           <div>
             <dt className="text-slate-500">{tr('តួនាទី', 'Role')}</dt>
-            <dd className="font-medium">{user.role?.name}</dd>
+            <dd className="font-medium">{ROLE_LABELS[user.role?.id] ? tr(...ROLE_LABELS[user.role.id]) : user.role?.name}</dd>
           </div>
           <div>
             <dt className="mb-1 text-slate-500">{tr('សិទ្ធិ', 'Permissions')}</dt>
@@ -67,7 +67,7 @@ export default function Account() {
               ) : (
                 user.role?.permissions?.map((p) => (
                   <Badge key={p.module}>
-                    {tr(...MODULE_LABELS[p.module])}: {p.actions.map((a) => tr(...ACTION_LABELS[a])).join('/')}
+                    {tr(...(MODULE_LABELS[p.module] || [p.module, p.module]))}: {p.actions.map((a) => tr(...ACTION_LABELS[a])).join('/')}
                   </Badge>
                 ))
               )}

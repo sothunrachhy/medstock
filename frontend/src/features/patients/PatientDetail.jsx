@@ -1,7 +1,8 @@
 import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { patients, usage as usageApi } from '@/lib/backend';
 import { medLabel } from '@/components/pickers';
 import { Badge, Empty, Loading } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -26,11 +27,11 @@ export default function PatientDetail() {
   const load = useCallback(async () => {
     try {
       const [p, u] = await Promise.all([
-        api.get(`/patients/${id}`),
-        can('usage') ? api.get('/usage', { params: { patient: id, limit: 1000 } }) : Promise.resolve({ data: { items: [] } }),
+        patients.get(id),
+        can('usage') ? usageApi.list({ patient: id, limit: 1000 }) : Promise.resolve({ items: [] }),
       ]);
-      setPatient(p.data);
-      setUsage(u.data.items);
+      setPatient(p);
+      setUsage(u.items);
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
@@ -59,7 +60,7 @@ export default function PatientDetail() {
   const remove = async (u) => {
     if (!window.confirm(tr('លុបកំណត់ត្រានេះ? ចំនួនឱសថនឹងត្រូវបញ្ចូលទៅស្តុកវិញ។', 'Delete this record? The quantity will be returned to stock.'))) return;
     try {
-      await api.delete(`/usage/${u._id}`);
+      await usageApi.remove(u._id);
       toast(tr('បានលុប', 'Deleted'));
       load();
     } catch (e) {

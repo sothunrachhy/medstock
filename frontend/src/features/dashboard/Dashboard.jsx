@@ -2,7 +2,8 @@ import { AlertTriangle, CalendarClock, ClipboardList, PackageX, Pill, RefreshCw,
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { getDashboard } from '@/lib/backend';
 import { medLabel } from '@/components/pickers';
 import { Badge, Empty, Loading, PageHeader, StatCard } from '@/components/ui';
 import { CATEGORY_COLORS, CATEGORY_LABELS, useLang } from '@/app/LangContext';
@@ -37,9 +38,8 @@ export default function Dashboard() {
 
   const load = () => {
     setLoading(true);
-    api
-      .get('/dashboard')
-      .then((r) => setData(r.data))
+    getDashboard()
+      .then(setData)
       .catch((e) => toast.error(errMsg(e)))
       .finally(() => setLoading(false));
   };

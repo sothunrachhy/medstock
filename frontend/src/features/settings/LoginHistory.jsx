@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { loginHistory } from '@/lib/backend';
 import Select from '@/components/ui/Select';
 import { Badge, Empty, Loading, Pagination } from '@/components/ui';
 import { useLang } from '@/app/LangContext';
@@ -25,9 +26,8 @@ export default function LoginHistory() {
     const t = setTimeout(() => {
       setLoading(true);
       const params = Object.fromEntries(Object.entries({ ...filters, page }).filter(([, v]) => v));
-      api
-        .get('/login-history', { params })
-        .then((r) => setData(r.data))
+      loginHistory(params)
+        .then(setData)
         .catch((e) => toast.error(errMsg(e)))
         .finally(() => setLoading(false));
     }, 250);

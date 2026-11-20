@@ -1,6 +1,7 @@
 import { Copy, Save } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { reports } from '@/lib/backend';
 import { PeriodPicker } from '@/components/pickers';
 import { ReportActions, ReportHeader, Sheet, Signatures } from './ReportParts';
 import { Loading } from '@/components/ui';
@@ -28,7 +29,7 @@ export default function WeeklyReport() {
   const [saving, setSaving] = useState(false);
   const tableRef = useRef(null);
   const { from, to } = periodRange('weekly', date);
-  const { data, loading } = useReport('/reports/stock-summary', { from, to, categories });
+  const { data, loading } = useReport(reports.stockSummary, { from, to, categories });
   const editable = can('reports', 'update');
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function WeeklyReport() {
   const save = async () => {
     setSaving(true);
     try {
-      await api.put('/reports/requisition', {
+      await reports.saveRequisition({
         categories,
         from,
         to,

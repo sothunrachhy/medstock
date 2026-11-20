@@ -1,6 +1,7 @@
 import { Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { roles as rolesApi, SERVICES } from '@/lib/backend';
 import { Badge, Field, Loading, Modal } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ACTION_LABELS, MODULE_LABELS, useLang } from '@/app/LangContext';
@@ -8,7 +9,7 @@ import { useToast } from '@/app/ToastContext';
 import { checkForm, serverFieldErrors, useFieldErrors } from '@/lib/validation';
 import { MAX, roleSchema } from '@shared/schemas/index.js';
 
-const MODULES = Object.keys(MODULE_LABELS);
+const MODULES = SERVICES; // the backend's permission modules
 const ACTIONS = Object.keys(ACTION_LABELS);
 
 export default function Roles() {
@@ -21,9 +22,9 @@ export default function Roles() {
 
   const load = () => {
     setLoading(true);
-    api
-      .get('/roles')
-      .then((r) => setRoles(r.data.items))
+    rolesApi
+      .list()
+      .then((r) => setRoles(r.items))
       .catch((e) => toast.error(errMsg(e)))
       .finally(() => setLoading(false));
   };
@@ -32,7 +33,7 @@ export default function Roles() {
   const remove = async (r) => {
     if (!window.confirm(tr(`លុបតួនាទី "${r.name}"?`, `Delete role "${r.name}"?`))) return;
     try {
-      await api.delete(`/roles/${r._id}`);
+      await rolesApi.remove(r._id);
       toast(tr('បានលុប', 'Deleted'));
       load();
     } catch (e) {
@@ -83,7 +84,7 @@ export default function Roles() {
               ) : (
                 r.permissions.map((p) => (
                   <Badge key={p.module} color="slate">
-                    {tr(...MODULE_LABELS[p.module])}: {p.actions.map((a) => tr(...ACTION_LABELS[a])).join('/')}
+                    {tr(...(MODULE_LABELS[p.module] || [p.module, p.module]))}: {p.actions.map((a) => tr(...ACTION_LABELS[a])).join('/')}
                   </Badge>
                 ))
               )}
@@ -135,8 +136,8 @@ function RoleForm({ role, onClose, onSaved }) {
     setErrors(check.errors);
     if (!check.ok) return toast.error(check.message);
     try {
-      if (role._id) await api.put(`/roles/${role._id}`, { name, description, permissions });
-      else await api.post('/roles', { name, description, permissions });
+      if (role._id) await rolesApi.update(role._id, { name, description, permissions });
+      else await rolesApi.create({ name, description, permissions });
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved();
       onClose();

@@ -1,7 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { usage as usageApi } from '@/lib/backend';
 import { medLabel, PeriodPicker } from '@/components/pickers';
 import { Badge, Empty, Loading, PageHeader, Pagination } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -28,9 +29,9 @@ export default function Usage() {
   const load = useCallback(() => {
     const { from, to } = periodRange(pp.period, pp.date);
     setLoading(true);
-    api
-      .get('/usage', { params: { from, to, categories: category || undefined, payment: payment || undefined, page, limit: 50 } })
-      .then((r) => setData(r.data))
+    usageApi
+      .list({ from, to, categories: category || undefined, payment: payment || undefined, page, limit: 50 })
+      .then(setData)
       .catch((e) => toast.error(errMsg(e)))
       .finally(() => setLoading(false));
   }, [pp, category, payment, page, toast]);
@@ -39,7 +40,7 @@ export default function Usage() {
   const remove = async (u) => {
     if (!window.confirm(tr('លុបកំណត់ត្រានេះ? ចំនួនឱសថនឹងត្រូវបញ្ចូលទៅស្តុកវិញ។', 'Delete this record? The quantity will be returned to stock.'))) return;
     try {
-      await api.delete(`/usage/${u._id}`);
+      await usageApi.remove(u._id);
       toast(tr('បានលុប', 'Deleted'));
       load();
     } catch (e) {

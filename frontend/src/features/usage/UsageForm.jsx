@@ -1,6 +1,7 @@
 import { Plus, Trash2, Wallet } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { usage as usageApi } from '@/lib/backend';
 import { MedicineSelect, PatientSelect, useMedicines } from '@/components/pickers';
 import Select from '@/components/ui/Select';
 import { Field, Modal } from '@/components/ui';
@@ -46,10 +47,10 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
   useEffect(() => {
     if (!open || !patientId) return;
     let stale = false;
-    api
-      .get('/usage', { params: { patient: patientId, limit: 1 } })
+    usageApi
+      .list({ patient: patientId, limit: 1 })
       .then((r) => {
-        const last = r.data.items[0]?.payment;
+        const last = r.items[0]?.payment;
         if (!stale && last) setPayment((p) => p || last);
       })
       .catch(() => {});
@@ -75,7 +76,7 @@ export default function UsageForm({ open, onClose, patient, defaultDate, onSaved
     if (!check.ok) return toast.error(check.message);
     setBusy(true);
     try {
-      await api.post('/usage', body);
+      await usageApi.record(body);
       toast(tr('បានកត់ត្រាការប្រើប្រាស់', 'Usage recorded'));
       onSaved?.();
       onClose();

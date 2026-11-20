@@ -6,6 +6,7 @@ import { useLang } from '@/app/LangContext';
 import { todayStr } from '@/lib/dates';
 import { khDateParts, pad2 } from '@/lib/khmer';
 import { CategorySelect, REPORT_CATEGORIES } from './Reports';
+import { reports } from '@/lib/backend';
 import useReport from './useReport';
 
 /**
@@ -18,7 +19,7 @@ export default function DailySheet() {
   const [categories, setCategories] = useState('INJECTION,NARCOTIC');
   const [allColumns, setAllColumns] = useState(false);
   const tableRef = useRef(null);
-  const { data, loading } = useReport('/reports/daily-sheet', { date, categories, allColumns: allColumns ? '1' : undefined });
+  const { data, loading } = useReport(reports.dailySheet, { date, categories, allColumns: allColumns || undefined });
   const kd = khDateParts(date);
 
   return (

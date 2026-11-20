@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import api, { errMsg } from '@/lib/api';
+import { errMsg } from '@/lib/api';
+import { patients } from '@/lib/backend';
 import Select, { AutoComplete } from '@/components/ui/Select';
 import { Field, Modal } from '@/components/ui';
 import { PROVINCES } from '@/config/org';
@@ -38,7 +39,7 @@ export default function PatientForm({ open, onClose, patient, onSaved }) {
     if (!check.ok) return toast.error(check.message);
     setBusy(true);
     try {
-      const { data } = patient ? await api.put(`/patients/${patient._id}`, body) : await api.post('/patients', body);
+      const data = patient ? await patients.update(patient._id, body) : await patients.create(body);
       toast(tr('បានរក្សាទុក', 'Saved'));
       onSaved?.(data);
       onClose();
